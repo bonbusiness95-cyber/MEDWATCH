@@ -3,7 +3,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import axios from "axios";
 import FeedParser from "feedparser";
-import cheerio from "cheerio";
+import * as cheerio from "cheerio";
 import dotenv from "dotenv";
 
 // Load environment variables

@@ -23,7 +23,7 @@ import Dashboard from "./components/Dashboard";
 import ArticleEditor from "./components/ArticleEditor";
 import Calendar from "./components/Calendar";
 import StatsDashboard from "./components/StatsDashboard";
-import { fetchPubMedArticles, fetchRSSArticles, saveArticles, seedTestData, fetchClinicalTrials, fetchEuropePMC, fetchOpenAlex, fetchBioRxiv, fetchOpenFDA, fetchChEMBL, fetchOrphanet, fetchScrapeSource } from "./services/collectorService";
+import { fetchPubMedArticles, fetchAllAPISources, fetchAllRSSSources, fetchAllScrapeSources } from "./services/collectorService";
 import { rssSources, scrapeSources } from "./services/sourceConfig";
 
 export default function App() {
@@ -57,42 +57,22 @@ export default function App() {
   const handleRefreshData = async () => {
     setIsRefreshing(true);
     try {
-      const [pubmed, trials, epmc, openalex, biorxiv, medrxiv, fda, chembl, orphanet] = await Promise.all([
-        fetchPubMedArticles(),
-        fetchClinicalTrials(),
-        fetchEuropePMC(),
-        fetchOpenAlex(),
-        fetchBioRxiv("biorxiv"),
-        fetchBioRxiv("medrxiv"),
-        fetchOpenFDA(),
-        fetchChEMBL(),
-        fetchOrphanet()
+      const [apiArticles, rssArticles, scrapeArticles, pubmedArticles] = await Promise.all([
+        fetchAllAPISources(),
+        fetchAllRSSSources(),
+        fetchAllScrapeSources(),
+        fetchPubMedArticles()
       ]);
       
-      const rssArticles = await Promise.all(
-        rssSources.map((s) => fetchRSSArticles(s.url, s.name))
-      );
-
-      const scrapeArticles = await Promise.all(
-        scrapeSources.map((s) => fetchScrapeSource(s))
-      );
-      
       const allArticles = [
-        ...pubmed, 
-        ...trials, 
-        ...epmc, 
-        ...openalex,
-        ...biorxiv,
-        ...medrxiv,
-        ...fda,
-        ...chembl,
-        ...orphanet,
-        ...rssArticles.flat(),
-        ...scrapeArticles.flat()
+        ...apiArticles,
+        ...rssArticles,
+        ...scrapeArticles,
+        ...pubmedArticles
       ];
       
-      await saveArticles(allArticles);
-      alert("Données rafraîchies avec succès !");
+      console.log(`Fetched ${allArticles.length} articles from all sources`);
+      alert(`✅ Données rafraîchies! ${allArticles.length} articles collectés.`);
     } catch (error) {
       console.error("Refresh failed", error);
       alert("Erreur lors du rafraîchissement des données.");

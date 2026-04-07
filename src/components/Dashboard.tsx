@@ -2,15 +2,17 @@ import React, { useState, useEffect } from "react";
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
-import { Eye, Edit2, CheckCircle, XCircle, ExternalLink, BrainCircuit } from "lucide-react";
+import { Edit2, XCircle, ExternalLink, BrainCircuit, Filter, X } from "lucide-react";
 import { analyzeArticle } from "../services/geminiService";
-import { allSourceLabels } from "../services/sourceConfig";
+import { allSources } from "../services/sourceConfig";
 
 export default function Dashboard() {
   const [articles, setArticles] = useState<any[]>([]);
   const [filter, setFilter] = useState("pending");
-  const [sourceFilter, setSourceFilter] = useState("all");
+  const [sourcefilters, setSourceFilters] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "api" | "rss" | "scrape">("all");
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const [showSourcePanel, setShowSourcePanel] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,8 +22,8 @@ export default function Dashboard() {
       orderBy("created_at", "desc")
     );
 
-    if (sourceFilter !== "all") {
-      q = query(q, where("source", "==", sourceFilter));
+    if (sourcefilters.length > 0) {
+      q = query(q, where("source", "in", sourcefilters));
     }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -29,7 +31,7 @@ export default function Dashboard() {
     });
 
     return unsubscribe;
-  }, [filter, sourceFilter]);
+  }, [filter, sourcefilters]);
 
   const handleAnalyze = async (article: any) => {
     setAnalyzingId(article.id);
@@ -54,123 +56,153 @@ export default function Dashboard() {
     }
   };
 
+  const toggleSourceFilter = (sourceName: string) => {
+    setSourceFilters(prev =>
+      prev.includes(sourceName)
+        ? prev.filter(s => s !== sourceName)
+        : [...prev, sourceName]
+    );
+  };
+
+  const filteredSources = categoryFilter === "all"
+    ? allSources
+    : allSources.filter(s => s.category === categoryFilter);
+
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Veille Médicale</h1>
-          <p className="text-slate-500">Gérez les articles collectés et préparez les publications.</p>
-        </div>
-        <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-200">
-          <FilterButton active={filter === "pending"} onClick={() => setFilter("pending")} label="En attente" />
-          <FilterButton active={filter === "approved"} onClick={() => setFilter("approved")} label="Approuvés" />
-          <FilterButton active={filter === "published"} onClick={() => setFilter("published")} label="Publiés" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Veille Médicale
+              </h1>
+              <p className="text-slate-500 text-sm mt-1">Collecte, analyse et publication d'articles médicaux</p>
+            </div>
+            <div className="flex gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <StatusButton active={filter === "pending"} onClick={() => setFilter("pending")} label="📋 En attente" />
+              <StatusButton active={filter === "approved"} onClick={() => setFilter("approved")} label="✅ Approuvés" />
+              <StatusButton active={filter === "published"} onClick={() => setFilter("published")} label="🚀 Publiés" />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-4 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-        <SourceFilter active={sourceFilter === "all"} onClick={() => setSourceFilter("all")} label="Toutes les sources" />
-        <SourceFilter active={sourceFilter === "pubmed"} onClick={() => setSourceFilter("pubmed")} label="PubMed" />
-        <SourceFilter active={sourceFilter === "clinical_trials"} onClick={() => setSourceFilter("clinical_trials")} label="Essais Cliniques" />
-        <SourceFilter active={sourceFilter === "europe_pmc"} onClick={() => setSourceFilter("europe_pmc")} label="Europe PMC" />
-        {allSourceLabels.map((source) => (
-          <SourceFilter
-            key={source.source}
-            active={sourceFilter === source.source}
-            onClick={() => setSourceFilter(source.source)}
-            label={source.label}
-          />
-        ))}
-      </div>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Source Filter Panel */}
+        <div className="mb-8">
+          <button
+            onClick={() => setShowSourcePanel(!showSourcePanel)}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors font-semibold text-slate-700"
+          >
+            <Filter size={18} />
+            Filtrer par sources ({sourcefilters.length})
+            {showSourcePanel ? <X size={16} /> : <span className="ml-auto">▼</span>}
+          </button>
 
-      <div className="grid grid-cols-1 gap-6">
+          {showSourcePanel && (
+            <div className="mt-4 bg-white border border-slate-200 rounded-xl p-6 shadow-lg">
+              {/* Category tabs */}
+              <div className="flex gap-2 mb-6 pb-4 border-b border-slate-200">
+                <CategoryTab
+                  active={categoryFilter === "all"}
+                  onClick={() => setCategoryFilter("all")}
+                  label="Toutes (70+)"
+                  icon="📊"
+                />
+                <CategoryTab
+                  active={categoryFilter === "api"}
+                  onClick={() => setCategoryFilter("api")}
+                  label="API (20)"
+                  icon="🔌"
+                />
+                <CategoryTab
+                  active={categoryFilter === "rss"}
+                  onClick={() => setCategoryFilter("rss")}
+                  label="RSS (25)"
+                  icon="📡"
+                />
+                <CategoryTab
+                  active={categoryFilter === "scrape"}
+                  onClick={() => setCategoryFilter("scrape")}
+                  label="Web Scrape (17)"
+                  icon="🕷️"
+                />
+              </div>
+
+              {/* Source grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                {filteredSources.map((source) => (
+                  <button
+                    key={source.name}
+                    onClick={() => toggleSourceFilter(source.name)}
+                    className={`p-3 rounded-lg border-2 transition-all text-sm font-semibold text-center ${
+                      sourcefilters.includes(source.name)
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="text-lg mb-1">{source.icon}</div>
+                    <div className="line-clamp-2">{source.label}</div>
+                  </button>
+                ))}
+              </div>
+
+              {sourcefilters.length > 0 && (
+                <button
+                  onClick={() => setSourceFilters([])}
+                  className="mt-4 text-sm text-slate-500 hover:text-slate-700 underline"
+                >
+                  Effacer tous les filtres
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {/* Articles Grid */}
         {articles.length === 0 ? (
-          <div className="bg-white p-12 rounded-2xl border border-dashed border-slate-300 text-center text-slate-400">
-            Aucun article trouvé dans cette catégorie.
+          <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-16 text-center">
+            <div className="text-4xl mb-4">📭</div>
+            <p className="text-slate-500 font-semibold">Aucun article trouvé</p>
+            <p className="text-slate-400 text-sm mt-2">Essayez de modifier les filtres ou attendez que les sources se synchronisent</p>
           </div>
         ) : (
-          articles.map((article) => (
-            <div key={article.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-all group">
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase ${getSourceColor(article.source)}`}>
-                      {article.source}
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      {article.published_date}
-                    </span>
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
-                    {article.title}
-                  </h3>
-                  <p className="text-slate-600 line-clamp-2 text-sm mb-4">
-                    {article.abstract || "Pas de résumé disponible."}
-                  </p>
-                  
-                  <div className="flex items-center gap-4">
-                    <a 
-                      href={article.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                    >
-                      <ExternalLink size={14} /> Voir la source
-                    </a>
-                    {article.reliability_score && (
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${article.reliability_score > 70 ? 'bg-green-500' : 'bg-orange-500'}`}
-                            style={{ width: `${article.reliability_score}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-bold text-slate-500">{article.reliability_score}%</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  {!article.summary_facebook ? (
-                    <button
-                      onClick={() => handleAnalyze(article)}
-                      disabled={analyzingId === article.id}
-                      className="flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors text-sm font-semibold disabled:opacity-50"
-                    >
-                      <BrainCircuit size={18} className={analyzingId === article.id ? "animate-spin" : ""} />
-                      {analyzingId === article.id ? "Analyse..." : "Analyser par IA"}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => navigate(`/editor/${article.id}`)}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors text-sm font-semibold"
-                    >
-                      <Edit2 size={18} /> Éditer & Publier
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleReject(article.id)}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors text-sm font-semibold"
-                  >
-                    <XCircle size={18} /> Rejeter
-                  </button>
-                </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {articles.map((article) => (
+              <div key={article.id}>
+                <ArticleCard
+                  article={article}
+                  onAnalyze={() => handleAnalyze(article)}
+                  onReject={() => handleReject(article.id)}
+                  onEdit={() => navigate(`/editor/${article.id}`)}
+                  isAnalyzing={analyzingId === article.id}
+                />
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-function FilterButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+function StatusButton({
+  active,
+  onClick,
+  label
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
   return (
     <button
       onClick={onClick}
-      className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
-        active ? "bg-blue-600 text-white shadow-md" : "text-slate-500 hover:text-slate-900"
+      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+        active
+          ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md"
+          : "text-slate-600 hover:text-slate-900 hover:bg-white"
       }`}
     >
       {label}
@@ -178,40 +210,158 @@ function FilterButton({ active, onClick, label }: { active: boolean; onClick: ()
   );
 }
 
-function SourceFilter({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+function CategoryTab({
+  active,
+  onClick,
+  label,
+  icon
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  icon: string;
+}) {
   return (
     <button
       onClick={onClick}
-      className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
-        active 
-          ? "bg-slate-900 text-white border-slate-900 shadow-sm" 
-          : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
+      className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${
+        active
+          ? "bg-blue-100 text-blue-700 border-b-2 border-blue-600"
+          : "text-slate-600 hover:text-slate-900"
       }`}
     >
+      <span className="text-lg">{icon}</span>
       {label}
     </button>
   );
 }
 
-function getSourceColor(source: string) {
-  switch (source) {
-    case "pubmed": return "bg-blue-100 text-blue-700";
-    case "clinical_trials": return "bg-purple-100 text-purple-700";
-    case "europe_pmc": return "bg-indigo-100 text-indigo-700";
-    case "twitter": return "bg-sky-100 text-sky-700";
-    case "ema_rss": return "bg-emerald-100 text-emerald-700";
-    case "fda_rss": return "bg-amber-100 text-amber-700";
-    case "openalex": return "bg-cyan-100 text-cyan-700";
-    case "biorxiv":
-    case "medrxiv": return "bg-orange-100 text-orange-700";
-    case "openfda": return "bg-yellow-100 text-yellow-700";
-    case "chembl": return "bg-teal-100 text-teal-700";
-    case "orphanet": return "bg-violet-100 text-violet-700";
-    case "plos_ntd_rss":
-    case "malaria_journal_rss": return "bg-lime-100 text-lime-700";
-    case "nejm_rss":
-    case "lancet_rss":
-    case "nature_med_rss": return "bg-rose-100 text-rose-700";
-    default: return "bg-slate-100 text-slate-700";
-  }
+function ArticleCard({
+  article,
+  onAnalyze,
+  onReject,
+  onEdit,
+  isAnalyzing
+}: {
+  article: any;
+  onAnalyze: () => Promise<void>;
+  onReject: () => Promise<void>;
+  onEdit: () => void;
+  isAnalyzing: boolean;
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-xl transition-all overflow-hidden group">
+      {/* Header with source badge */}
+      <div className="p-4 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+        <div className="flex items-center justify-between mb-2">
+          <SourceBadge source={article.source} />
+          {article.reliability_score && (
+            <div className="flex items-center gap-2">
+              <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    article.reliability_score > 70 ? "bg-green-500" : "bg-orange-500"
+                  }`}
+                  style={{ width: `${article.reliability_score}%` }}
+                />
+              </div>
+              <span className="text-xs font-bold text-slate-600">{article.reliability_score}%</span>
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-slate-500">{article.published_date}</p>
+      </div>
+
+      {/* Content */}
+      <div className="p-5">
+        <h3 className="text-lg font-bold text-slate-900 mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors">
+          {article.title}
+        </h3>
+        <p className="text-slate-600 text-sm line-clamp-3 mb-4">
+          {article.abstract || "Pas de résumé disponible."}
+        </p>
+
+        {/* Quick stats */}
+        {(article.mentions_drug || article.mentions_disease) && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {article.mentions_drug && (
+              <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-semibold">
+                💊 {article.mentions_drug}
+              </span>
+            )}
+            {article.mentions_disease && (
+              <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-semibold">
+                🏥 {article.mentions_disease}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Link */}
+        <a
+          href={article.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-semibold mb-4"
+        >
+          <ExternalLink size={14} /> Voir la source complète
+        </a>
+      </div>
+
+      {/* Actions */}
+      <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex gap-2">
+        {!article.summary_facebook ? (
+          <button
+            onClick={onAnalyze}
+            disabled={isAnalyzing}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 font-semibold text-sm"
+          >
+            <BrainCircuit size={16} className={isAnalyzing ? "animate-spin" : ""} />
+            {isAnalyzing ? "Analyse..." : "Analyser par IA"}
+          </button>
+        ) : (
+          <button
+            onClick={onEdit}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm"
+          >
+            <Edit2 size={16} /> Éditer & Publier
+          </button>
+        )}
+        <button
+          onClick={onReject}
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all font-semibold text-sm border border-red-200"
+        >
+          <XCircle size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SourceBadge({ source }: { source: string }) {
+  const colors: Record<string, { bg: string; text: string; icon: string }> = {
+    pubmed: { bg: "bg-blue-100", text: "text-blue-700", icon: "🔬" },
+    clinical_trials: { bg: "bg-purple-100", text: "text-purple-700", icon: "🧪" },
+    europe_pmc: { bg: "bg-indigo-100", text: "text-indigo-700", icon: "📚" },
+    openalex: { bg: "bg-cyan-100", text: "text-cyan-700", icon: "🌐" },
+    biorxiv: { bg: "bg-orange-100", text: "text-orange-700", icon: "📄" },
+    medrxiv: { bg: "bg-orange-100", text: "text-orange-700", icon: "📄" },
+    openfda: { bg: "bg-yellow-100", text: "text-yellow-700", icon: "⚠️" },
+    chembl: { bg: "bg-teal-100", text: "text-teal-700", icon: "🧬" },
+    orphanet: { bg: "bg-violet-100", text: "text-violet-700", icon: "🏥" },
+    nejm_rss: { bg: "bg-rose-100", text: "text-rose-700", icon: "📰" },
+    lancet_rss: { bg: "bg-rose-100", text: "text-rose-700", icon: "📰" },
+    ema_rss: { bg: "bg-emerald-100", text: "text-emerald-700", icon: "🇪🇺" },
+    fda_rss: { bg: "bg-amber-100", text: "text-amber-700", icon: "🇺🇸" },
+    who_rss: { bg: "bg-blue-100", text: "text-blue-700", icon: "🌍" }
+  };
+
+  const style = colors[source] || { bg: "bg-slate-100", text: "text-slate-700", icon: "📌" };
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold text-xs ${style.bg} ${style.text}`}>
+      <span>{style.icon}</span>
+      {source.toUpperCase()}
+    </span>
+  );
 }

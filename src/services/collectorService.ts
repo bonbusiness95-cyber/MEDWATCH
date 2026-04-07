@@ -1,91 +1,119 @@
 import axios from "axios";
 import { collection, addDoc, query, where, getDocs, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
-import { RSSSource, ScrapeSource } from "./sourceConfig";
+import { rssSources, scrapeSources, apiSources } from "./sourceConfig";
+
+// Helper function to deduplicate articles by title and source
+const deduplicateArticles = async (articles: any[]) => {
+  for (const article of articles) {
+    const q = query(
+      collection(db, "articles"),
+      where("source", "==", article.source),
+      where("title", "==", article.title)
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.docs.length === 0) {
+      await addDoc(collection(db, "articles"), article);
+    }
+  }
+};
 
 export const fetchPubMedArticles = async () => {
   const term = '("new drug"[Title/Abstract] OR "phase III"[Title/Abstract] OR "FDA approval"[Title/Abstract] OR "clinical trial results"[Title/Abstract] OR "treatment guideline"[Title/Abstract] OR "rare case"[Title/Abstract])';
-  const reldate = 1; // Last 24 hours
+  const reldate = 1;
   
-  const searchRes = await axios.get("/api/pubmed/search", { params: { term, reldate } });
-  const ids = searchRes.data.esearchresult.idlist;
-  
-  if (!ids || ids.length === 0) return [];
+  try {
+    const searchRes = await axios.get("/api/pubmed/search", { params: { term, reldate } });
+    const ids = searchRes.data.esearchresult.idlist;
+    
+    if (!ids || ids.length === 0) return [];
 
-  const summaryRes = await axios.get("/api/pubmed/summary", { params: { id: ids.join(",") } });
-  const summaries = summaryRes.data.result;
-  
-  const articles = ids.map((id: string) => {
-    const s = summaries[id];
-    return {
-      source: "pubmed",
-      external_id: id,
-      title: s.title,
-      abstract: s.abstract || "", // PubMed summary might not have full abstract
-      url: `https://pubmed.ncbi.nlm.nih.gov/${id}/`,
-      published_date: s.pubdate,
-      status: "pending",
-      created_at: serverTimestamp()
-    };
-  });
+    const summaryRes = await axios.get("/api/pubmed/summary", { params: { id: ids.join(",") } });
+    const summaries = summaryRes.data.result;
+    
+    const articles = ids.map((id: string) => {
+      const s = summaries[id];
+      return {
+        source: "pubmed",
+        external_id: id,
+        title: s.title,
+        abstract: s.abstract || "",
+        url: `https://pubmed.ncbi.nlm.nih.gov/${id}/`,
+        published_date: s.pubdate,
+        status: "pending",
+        created_at: serverTimestamp()
+      };
+    });
 
-  return articles;
+    await deduplicateArticles(articles);
+    return articles;
+  } catch (error) {
+    console.error("PubMed fetch error:", error);
+    return [];
+  }
 };
 
-export const fetchRSSArticles = async (url: string, sourceName: string) => {
-  const res = await axios.get("/api/rss", { params: { url } });
-  const items = res.data;
+export const fetchAllAPISources = async () => {
+  const allArticles: any[] = [];
   
-  return items.map((item: any) => ({
-    source: sourceName,
-    external_id: item.guid || item.link,
-    title: item.title,
-    abstract: item.description,
-    url: item.link,
-    published_date: item.pubDate,
-    status: "pending",
-    created_at: serverTimestamp()
-  }));
+  try {
+    const endpoints = [
+      { endpoint: "/api/clinicaltrials", parser: parseClinicalTrials },
+      { endpoint: "/api/openfda", parser: parseOpenFDA },
+      { endpoint: "/api/europepmc", parser: parseEuropePMC },
+      { endpoint: "/api/crossref", parser: parseCrossRef },
+      { endpoint: "/api/semanticscholar", parser: parseSemanticScholar },
+      { endpoint: "/api/chembl", parser: parseChEMBL },
+      { endpoint: "/api/orphanet", parser: parseOrphanet },
+    ];
+
+    for (const { endpoint, parser } of endpoints) {
+      try {
+        const res = await axios.get(endpoint);
+        const articles = parser(res.data);
+        allArticles.push(...articles);
+      } catch (error) {
+        console.warn(`API endpoint ${endpoint} failed:`, error);
+      }
+    }
+
+    await deduplicateArticles(allArticles);
+    return allArticles;
+  } catch (error) {
+    console.error("API sources fetch error:", error);
+    return [];
+  }
 };
 
-export const fetchScrapeSource = async (source: ScrapeSource) => {
-  const res = await axios.post("/api/scrape", source);
-  const items = res.data || [];
-
-  return items.map((item: any) => ({
-    source: source.name,
-    external_id: item.link,
-    title: item.title,
-    abstract: item.description || "",
-    url: item.link,
-    published_date: item.pubDate || "",
-    status: "pending",
-    created_at: serverTimestamp()
-  }));
-};
-
-export const fetchClinicalTrials = async () => {
-  const term = "phase 3 AND (recruiting OR active, not recruiting)";
-  const res = await axios.get("/api/clinicaltrials", { params: { term } });
-  const studies = res.data.studies || [];
-  
+const parseClinicalTrials = (data: any): any[] => {
+  const studies = data.studies || [];
   return studies.map((s: any) => ({
     source: "clinical_trials",
-    external_id: s.protocolSection.identificationModule.nctId,
-    title: s.protocolSection.identificationModule.officialTitle || s.protocolSection.identificationModule.briefTitle,
-    abstract: s.protocolSection.descriptionModule.briefSummary,
-    url: `https://clinicaltrials.gov/study/${s.protocolSection.identificationModule.nctId}`,
-    published_date: s.protocolSection.statusModule.lastUpdatePostDate,
+    external_id: s.protocolSection?.identificationModule?.nctId,
+    title: s.protocolSection?.identificationModule?.officialTitle || s.protocolSection?.identificationModule?.briefTitle,
+    abstract: s.protocolSection?.descriptionModule?.briefSummary,
+    url: `https://clinicaltrials.gov/study/${s.protocolSection?.identificationModule?.nctId}`,
+    published_date: s.protocolSection?.statusModule?.lastUpdatePostDate,
     status: "pending",
     created_at: serverTimestamp()
   }));
 };
 
-export const fetchEuropePMC = async () => {
-  const query = "new drug approval 2026";
-  const res = await axios.get("/api/europepmc", { params: { query } });
-  const results = res.data.resultList.result || [];
-  
+const parseOpenFDA = (data: any): any[] => {
+  return (data.results || []).slice(0, 20).map((r: any) => ({
+    source: "openfda",
+    external_id: r.id || r.brand_name?.[0],
+    title: `FDA Alert: ${r.brand_name?.[0] || "Drug"}`,
+    abstract: r.adverse_reactions?.[0] || r.summary || "",
+    url: "https://api.fda.gov",
+    published_date: new Date().toISOString(),
+    status: "pending",
+    created_at: serverTimestamp()
+  }));
+};
+
+const parseEuropePMC = (data: any): any[] => {
+  const results = data.resultList?.result || [];
   return results.map((r: any) => ({
     source: "europe_pmc",
     external_id: r.id,
@@ -96,6 +124,136 @@ export const fetchEuropePMC = async () => {
     status: "pending",
     created_at: serverTimestamp()
   }));
+};
+
+const parseCrossRef = (data: any): any[] => {
+  const items = data.message?.items || [];
+  return items.slice(0, 20).map((item: any) => ({
+    source: "crossref",
+    external_id: item.DOI,
+    title: item.title?.[0] || "Research Article",
+    abstract: item.abstract || "",
+    url: `https://doi.org/${item.DOI}`,
+    published_date: item.created?.["date-time"] || new Date().toISOString(),
+    status: "pending",
+    created_at: serverTimestamp()
+  }));
+};
+
+const parseSemanticScholar = (data: any): any[] => {
+  const data_list = data.data || [];
+  return data_list.slice(0, 20).map((paper: any) => ({
+    source: "semantic_scholar",
+    external_id: paper.paperId,
+    title: paper.title,
+    abstract: paper.abstract || "",
+    url: `https://www.semanticscholar.org/paper/${paper.paperId}`,
+    published_date: paper.year?.toString(),
+    status: "pending",
+    created_at: serverTimestamp()
+  }));
+};
+
+const parseChEMBL = (data: any): any[] => {
+  const molecules = data.molecules || [];
+  return molecules.slice(0, 20).map((mol: any) => ({
+    source: "chembl",
+    external_id: mol.molecule_chembl_id,
+    title: `ChEMBL: ${mol.pref_name}`,
+    abstract: mol.molecule_type || "",
+    url: `https://www.ebi.ac.uk/chembl/compound/${mol.molecule_chembl_id}`,
+    published_date: new Date().toISOString(),
+    status: "pending",
+    created_at: serverTimestamp()
+  }));
+};
+
+const parseOrphanet = (data: any): any[] => {
+  const disorders = data.DisorderList?.Disorder || [];
+  return (Array.isArray(disorders) ? disorders : [disorders]).slice(0, 20).map((d: any) => ({
+    source: "orphanet",
+    external_id: d["@id"],
+    title: d.Name,
+    abstract: `Rare disease - Status: ${d.DisorderStatus}`,
+    url: `https://www.orpha.net/consor/cgi-bin/OC_Exp.php?Lng=EN&Expert=${d["@id"]}`,
+    published_date: new Date().toISOString(),
+    status: "pending",
+    created_at: serverTimestamp()
+  }));
+};
+
+export const fetchAllRSSSources = async () => {
+  const allArticles: any[] = [];
+
+  for (const source of rssSources) {
+    try {
+      const articles = await fetchRSSArticles(source.url, source.name);
+      allArticles.push(...articles);
+    } catch (error) {
+      console.warn(`RSS source ${source.label} failed:`, error);
+    }
+  }
+
+  await deduplicateArticles(allArticles);
+  return allArticles;
+};
+
+export const fetchRSSArticles = async (url: string, sourceName: string) => {
+  try {
+    const res = await axios.get("/api/rss", { params: { url } });
+    const items = res.data;
+    
+    return items.map((item: any) => ({
+      source: sourceName,
+      external_id: item.guid || item.link,
+      title: item.title,
+      abstract: item.description,
+      url: item.link,
+      published_date: item.pubDate,
+      status: "pending",
+      created_at: serverTimestamp()
+    }));
+  } catch (error) {
+    console.error(`Error fetching RSS ${sourceName}:`, error);
+    return [];
+  }
+};
+
+export const fetchAllScrapeSources = async () => {
+  const allArticles: any[] = [];
+
+  for (const source of scrapeSources) {
+    try {
+      const articles = await fetchScrapeSource(source);
+      allArticles.push(...articles);
+    } catch (error) {
+      console.warn(`Scrape source ${source.label} failed:`, error);
+    }
+  }
+
+  await deduplicateArticles(allArticles);
+  return allArticles;
+};
+
+export const fetchScrapeSource = async (source: any) => {
+  try {
+    const res = await axios.post("/api/scrape", source);
+    const items = res.data || [];
+
+    return items.map((item: any) => ({
+      source: source.name,
+      external_id: item.link,
+      title: item.title,
+      abstract: item.description || "",
+      url: item.link,
+      published_date: item.pubDate || "",
+      status: "pending",
+      created_at: serverTimestamp()
+    }));
+  } catch (error) {
+    console.error(`Error scraping source ${source.label}:`, error);
+    return [];
+  }
 };
 
 export const fetchOpenAlex = async () => {
