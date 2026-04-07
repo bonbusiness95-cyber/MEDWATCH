@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebase";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 
 export default function StatsDashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     total: 0,
     approved: 0,
@@ -38,7 +41,15 @@ export default function StatsDashboard() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold text-slate-900 mb-8">Statistiques de Veille</h1>
+      <div className="flex items-center justify-between gap-4 mb-8">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
+        >
+          <ArrowLeft size={18} /> Retour
+        </button>
+        <h1 className="text-3xl font-bold text-slate-900">Statistiques de Veille</h1>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <StatCard label="Articles Collectés" value={stats.total.toString()} change="Total" />
         <StatCard label="Taux d'Approbation" value={`${stats.approvalRate}%`} change="Moyenne" />

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { ArrowLeft } from "lucide-react";
 
 export default function Calendar() {
   const [scheduled, setScheduled] = useState<any[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const q = query(collection(db, "articles"), where("status", "==", "approved"));
@@ -17,7 +20,15 @@ export default function Calendar() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold text-slate-900 mb-8">Calendrier Éditorial</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
+        >
+          <ArrowLeft size={18} /> Retour
+        </button>
+        <h1 className="text-3xl font-bold text-slate-900">Calendrier Éditorial</h1>
+      </div>
       
       <div className="grid grid-cols-1 gap-4">
         {scheduled.length === 0 ? (

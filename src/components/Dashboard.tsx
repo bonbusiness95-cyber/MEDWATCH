@@ -110,10 +110,10 @@ export default function Dashboard() {
         showMobileMenu ? 'translate-x-0' : 'lg:translate-x-0 -translate-x-full'
       }`}>
         <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-slate-100">
-          <div className="bg-blue-600 p-2 rounded-lg">
-            <Stethoscope className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
+          <div className="bg-blue-600 p-2 rounded-lg flex items-center justify-center">
+            <img src="/logo.svg" alt="MEDwatch" className="w-8 h-8 lg:w-10 lg:h-10" />
           </div>
-          <span className="font-bold text-lg lg:text-xl text-slate-900">MedWatch</span>
+          <span className="font-bold text-lg lg:text-xl text-slate-900">MEDwatch</span>
         </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

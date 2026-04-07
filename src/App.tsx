@@ -6,7 +6,6 @@ import {
   Navigate
 } from "react-router-dom";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { Stethoscope } from "lucide-react";
 import { auth } from "./firebase";
 import Dashboard from "./components/Dashboard";
 import ArticleEditor from "./components/ArticleEditor";
@@ -48,9 +47,9 @@ export default function App() {
       <div className="flex flex-col items-center justify-center h-screen bg-slate-50 p-4">
         <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
           <div className="bg-blue-100 p-4 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
-            <Stethoscope className="w-10 h-10 text-blue-600" />
+            <img src="/logo.svg" alt="MEDwatch logo" className="w-14 h-14" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">MedWatch AI</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">MEDwatch AI</h1>
           <p className="text-slate-600 mb-8">
             Veille médicale intelligente et community management automatisé.
           </p>
