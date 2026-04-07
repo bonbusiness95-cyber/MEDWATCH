@@ -1,6 +1,7 @@
 import axios from "axios";
 import { collection, addDoc, query, where, getDocs, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
+import { RSSSource, ScrapeSource } from "./sourceConfig";
 
 export const fetchPubMedArticles = async () => {
   const term = '("new drug"[Title/Abstract] OR "phase III"[Title/Abstract] OR "FDA approval"[Title/Abstract] OR "clinical trial results"[Title/Abstract] OR "treatment guideline"[Title/Abstract] OR "rare case"[Title/Abstract])';
@@ -42,6 +43,22 @@ export const fetchRSSArticles = async (url: string, sourceName: string) => {
     abstract: item.description,
     url: item.link,
     published_date: item.pubDate,
+    status: "pending",
+    created_at: serverTimestamp()
+  }));
+};
+
+export const fetchScrapeSource = async (source: ScrapeSource) => {
+  const res = await axios.post("/api/scrape", source);
+  const items = res.data || [];
+
+  return items.map((item: any) => ({
+    source: source.name,
+    external_id: item.link,
+    title: item.title,
+    abstract: item.description || "",
+    url: item.link,
+    published_date: item.pubDate || "",
     status: "pending",
     created_at: serverTimestamp()
   }));

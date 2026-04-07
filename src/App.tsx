@@ -23,7 +23,8 @@ import Dashboard from "./components/Dashboard";
 import ArticleEditor from "./components/ArticleEditor";
 import Calendar from "./components/Calendar";
 import StatsDashboard from "./components/StatsDashboard";
-import { fetchPubMedArticles, fetchRSSArticles, saveArticles, seedTestData, fetchClinicalTrials, fetchEuropePMC, fetchOpenAlex, fetchBioRxiv, fetchOpenFDA, fetchChEMBL, fetchOrphanet } from "./services/collectorService";
+import { fetchPubMedArticles, fetchRSSArticles, saveArticles, seedTestData, fetchClinicalTrials, fetchEuropePMC, fetchOpenAlex, fetchBioRxiv, fetchOpenFDA, fetchChEMBL, fetchOrphanet, fetchScrapeSource } from "./services/collectorService";
+import { rssSources, scrapeSources } from "./services/sourceConfig";
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -68,18 +69,12 @@ export default function App() {
         fetchOrphanet()
       ]);
       
-      const rssSources = [
-        { url: "https://www.ema.europa.eu/en/news.xml", name: "ema_rss" },
-        { url: "https://www.fda.gov/news-events/press-announcements/rss.xml", name: "fda_rss" },
-        { url: "https://www.nejm.org/rss/recent-articles", name: "nejm_rss" },
-        { url: "https://www.thelancet.com/rssfeed/lancet_current.xml", name: "lancet_rss" },
-        { url: "https://www.nature.com/nm.rss", name: "nature_med_rss" },
-        { url: "https://journals.plos.org/plosntds/feed/atom", name: "plos_ntd_rss" },
-        { url: "https://malariajournal.biomedcentral.com/articles/rss", name: "malaria_journal_rss" }
-      ];
-
       const rssArticles = await Promise.all(
-        rssSources.map(s => fetchRSSArticles(s.url, s.name))
+        rssSources.map((s) => fetchRSSArticles(s.url, s.name))
+      );
+
+      const scrapeArticles = await Promise.all(
+        scrapeSources.map((s) => fetchScrapeSource(s))
       );
       
       const allArticles = [
@@ -92,7 +87,8 @@ export default function App() {
         ...fda,
         ...chembl,
         ...orphanet,
-        ...rssArticles.flat()
+        ...rssArticles.flat(),
+        ...scrapeArticles.flat()
       ];
       
       await saveArticles(allArticles);

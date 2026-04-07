@@ -3,6 +3,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import axios from "axios";
 import FeedParser from "feedparser";
+import cheerio from "cheerio";
 import dotenv from "dotenv";
 
 // Load environment variables
@@ -206,6 +207,56 @@ async function startServer() {
     } catch (error: any) {
       console.error("RSS fetch error:", error.message);
       res.status(500).json({ error: "Failed to fetch RSS feed", details: error.message });
+    }
+  });
+
+  app.post("/api/scrape", async (req, res) => {
+    try {
+      const {
+        url,
+        listSelector,
+        titleSelector,
+        linkSelector,
+        descriptionSelector,
+        dateSelector,
+        baseUrl
+      } = req.body;
+
+      if (!url || !listSelector || !titleSelector || !linkSelector) {
+        return res.status(400).json({ error: "Missing required scraping parameters" });
+      }
+
+      const response = await axios.get(url as string, {
+        headers: {
+          'User-Agent': 'MedWatch-AI/1.0 (https://medwatch.ai)',
+          'Accept': 'text/html,application/xhtml+xml,application/xml'
+        },
+        timeout: 15000
+      });
+
+      const html = response.data;
+      const $ = cheerio.load(html);
+      const items: any[] = [];
+
+      $(listSelector).each((_, el) => {
+        const title = $(el).find(titleSelector).text().trim();
+        let link = $(el).find(linkSelector).attr("href") || "";
+        const description = descriptionSelector ? $(el).find(descriptionSelector).text().trim() : $(el).text().trim();
+        const publishedDate = dateSelector ? $(el).find(dateSelector).attr("datetime") || $(el).find(dateSelector).text().trim() : "";
+
+        if (link && link.startsWith("/") && baseUrl) {
+          link = baseUrl.replace(/\/$/, "") + link;
+        }
+
+        if (title && link) {
+          items.push({ title, description, link, pubDate: publishedDate || "" });
+        }
+      });
+
+      res.json(items.slice(0, 15));
+    } catch (error: any) {
+      console.error("Scraping error:", error.message);
+      res.status(500).json({ error: "Failed to scrape page", details: error.message });
     }
   });
 

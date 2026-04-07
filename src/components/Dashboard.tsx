@@ -4,6 +4,7 @@ import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { Eye, Edit2, CheckCircle, XCircle, ExternalLink, BrainCircuit } from "lucide-react";
 import { analyzeArticle } from "../services/geminiService";
+import { allSourceLabels } from "../services/sourceConfig";
 
 export default function Dashboard() {
   const [articles, setArticles] = useState<any[]>([]);
@@ -72,18 +73,14 @@ export default function Dashboard() {
         <SourceFilter active={sourceFilter === "pubmed"} onClick={() => setSourceFilter("pubmed")} label="PubMed" />
         <SourceFilter active={sourceFilter === "clinical_trials"} onClick={() => setSourceFilter("clinical_trials")} label="Essais Cliniques" />
         <SourceFilter active={sourceFilter === "europe_pmc"} onClick={() => setSourceFilter("europe_pmc")} label="Europe PMC" />
-        <SourceFilter active={sourceFilter === "ema_rss"} onClick={() => setSourceFilter("ema_rss")} label="EMA" />
-        <SourceFilter active={sourceFilter === "fda_rss"} onClick={() => setSourceFilter("fda_rss")} label="FDA" />
-        <SourceFilter active={sourceFilter === "nejm_rss"} onClick={() => setSourceFilter("nejm_rss")} label="NEJM" />
-        <SourceFilter active={sourceFilter === "lancet_rss"} onClick={() => setSourceFilter("lancet_rss")} label="The Lancet" />
-        <SourceFilter active={sourceFilter === "openalex"} onClick={() => setSourceFilter("openalex")} label="OpenAlex" />
-        <SourceFilter active={sourceFilter === "biorxiv"} onClick={() => setSourceFilter("biorxiv")} label="bioRxiv" />
-        <SourceFilter active={sourceFilter === "medrxiv"} onClick={() => setSourceFilter("medrxiv")} label="medRxiv" />
-        <SourceFilter active={sourceFilter === "openfda"} onClick={() => setSourceFilter("openfda")} label="openFDA" />
-        <SourceFilter active={sourceFilter === "chembl"} onClick={() => setSourceFilter("chembl")} label="ChEMBL" />
-        <SourceFilter active={sourceFilter === "orphanet"} onClick={() => setSourceFilter("orphanet")} label="Orphanet" />
-        <SourceFilter active={sourceFilter === "plos_ntd_rss"} onClick={() => setSourceFilter("plos_ntd_rss")} label="PLOS NTD" />
-        <SourceFilter active={sourceFilter === "malaria_journal_rss"} onClick={() => setSourceFilter("malaria_journal_rss")} label="Malaria Journal" />
+        {allSourceLabels.map((source) => (
+          <SourceFilter
+            key={source.source}
+            active={sourceFilter === source.source}
+            onClick={() => setSourceFilter(source.source)}
+            label={source.label}
+          />
+        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-6">
