@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2020",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "outDir": "dist",
+    "noEmit": false,
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "lib": ["ES2020"]
+  },
+  "include": ["server.ts"],
+  "exclude": ["node_modules", "dist", "src/**/*"]
+}

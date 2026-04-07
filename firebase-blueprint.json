@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "Article": {
+      "title": "Article",
+      "description": "A medical article collected from various sources.",
+      "type": "object",
+      "properties": {
+        "source": { "type": "string", "description": "Origin: pubmed, twitter, ema_rss, etc." },
+        "external_id": { "type": "string", "description": "ID external (PMID, TweetID)" },
+        "title": { "type": "string", "description": "Full article title" },
+        "abstract": { "type": "string", "description": "Scientific abstract" },
+        "url": { "type": "string", "description": "Original source link" },
+        "published_date": { "type": "string", "format": "date-time", "description": "Original publication date" },
+        "article_type": { "type": "string", "description": "Category: medication, protocol, guideline, case_study" },
+        "pathology": { "type": "string", "description": "Target disease name" },
+        "molecule_name": { "type": "string", "description": "Molecule name if applicable" },
+        "study_phase": { "type": "string", "description": "Phase I, II, III, IV, N/A" },
+        "evidence_level": { "type": "string", "description": "Evidence level: RCT, meta-analysis, etc." },
+        "reliability_score": { "type": "integer", "description": "Calculated score 0-100" },
+        "summary_web": { "type": "string", "description": "AI-generated long summary" },
+        "summary_facebook": { "type": "string", "description": "Facebook post text" },
+        "clinical_impact": { "type": "string", "description": "minor, major, breakthrough" },
+        "status": { "type": "string", "description": "pending, approved, rejected, published, scheduled" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "validated_at": { "type": "string", "format": "date-time" },
+        "validated_by": { "type": "string" }
+      },
+      "required": ["source", "external_id", "title", "status"]
+    },
+    "Publication": {
+      "title": "Publication",
+      "description": "A publication record for social media.",
+      "type": "object",
+      "properties": {
+        "article_id": { "type": "string", "description": "Link to article source" },
+        "platform": { "type": "string", "description": "facebook, linkedin" },
+        "content": { "type": "string", "description": "Final published text" },
+        "image_url": { "type": "string", "description": "URL of generated image" },
+        "scheduled_at": { "type": "string", "format": "date-time" },
+        "published_at": { "type": "string", "format": "date-time" },
+        "facebook_post_id": { "type": "string" },
+        "status": { "type": "string", "description": "scheduled, published, failed" },
+        "error_message": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["article_id", "platform", "content", "status"]
+    }
+  },
+  "firestore": {
+    "/articles": {
+      "schema": "Article",
+      "description": "Collection of medical articles."
+    },
+    "/publications": {
+      "schema": "Publication",
+      "description": "Collection of social media publications."
+    }
+  }
+}
