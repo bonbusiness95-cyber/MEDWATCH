@@ -2,9 +2,8 @@ import React, { useState, useEffect } from "react";
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
-import { Edit2, XCircle, ExternalLink, BrainCircuit, Filter, X, Menu } from "lucide-react";
-import { analyzeArticle } from "../services/geminiService";
-import { allSources } from "../services/sourceConfig";
+import { Edit2, XCircle, ExternalLink, BrainCircuit, Filter, X, Menu, LayoutDashboard, Calendar as CalendarIcon, BarChart3, Settings, LogOut, RefreshCw, Stethoscope } from "lucide-react";
+import { fetchAllAPISources, fetchAllRSSSources, fetchAllScrapeSources, fetchPubMedArticles } from "../services/collectorService";
 
 export default function Dashboard() {
   const [articles, setArticles] = useState<any[]>([]);
@@ -14,6 +13,7 @@ export default function Dashboard() {
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [showSourcePanel, setShowSourcePanel] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -57,6 +57,37 @@ export default function Dashboard() {
     }
   };
 
+  const handleLogout = () => {
+    signOut(auth);
+  };
+
+  const handleRefreshData = async () => {
+    setIsRefreshing(true);
+    try {
+      const [apiArticles, rssArticles, scrapeArticles, pubmedArticles] = await Promise.all([
+        fetchAllAPISources(),
+        fetchAllRSSSources(),
+        fetchAllScrapeSources(),
+        fetchPubMedArticles()
+      ]);
+
+      const allArticles = [
+        ...apiArticles,
+        ...rssArticles,
+        ...scrapeArticles,
+        ...pubmedArticles
+      ];
+
+      console.log(`Fetched ${allArticles.length} articles from all sources`);
+      alert(`✅ Données rafraîchies! ${allArticles.length} articles collectés.`);
+    } catch (error) {
+      console.error("Refresh failed", error);
+      alert("Erreur lors du rafraîchissement des données.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const toggleSourceFilter = (sourceName: string) => {
     setSourceFilters(prev =>
       prev.includes(sourceName)
@@ -71,7 +102,50 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header */}
+      {/* Sidebar */}
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 lg:w-72 xl:w-80 bg-white border-r border-slate-200 flex flex-col transform ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out`}>
+        <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-slate-100">
+          <div className="bg-blue-600 p-2 rounded-lg">
+            <Stethoscope className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
+          </div>
+          <span className="font-bold text-lg lg:text-xl text-slate-900">MedWatch</span>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <NavLink to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" />
+          <NavLink to="/calendar" icon={<CalendarIcon size={20} />} label="Calendrier" />
+          <NavLink to="/stats" icon={<BarChart3 size={20} />} label="Statistiques" />
+        </nav>
+
+        <div className="p-4 border-t border-slate-100 space-y-2">
+          <button
+            onClick={handleRefreshData}
+            disabled={isRefreshing}
+            className="w-full flex items-center gap-3 px-4 py-2 text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors disabled:opacity-50 text-sm lg:text-base"
+          >
+            <RefreshCw size={20} className={isRefreshing ? "animate-spin" : ""} />
+            <span>Rafraîchir</span>
+          </button>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-2 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors text-sm lg:text-base"
+          >
+            <LogOut size={20} />
+            <span>Déconnexion</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile overlay */}
+      {showMobileMenu && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setShowMobileMenu(false)}
+        ></div>
+      )}
+
+      {/* Main Content */}
+      <main className="flex-1 lg:ml-0 overflow-y-auto min-h-screen">
       <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -195,7 +269,21 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+      </main>
     </div>
+  );
+}
+
+function NavLink({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      onClick={() => navigate(to)}
+      className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 hover:text-blue-600 rounded-xl transition-all font-medium text-left"
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 

@@ -3,33 +3,18 @@ import {
   BrowserRouter as Router, 
   Routes, 
   Route, 
-  Link, 
-  useNavigate,
   Navigate
 } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  Calendar as CalendarIcon, 
-  BarChart3, 
-  Settings, 
-  LogOut,
-  Stethoscope,
-  RefreshCw,
-  Sparkles
-} from "lucide-react";
 import { onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "./firebase";
 import Dashboard from "./components/Dashboard";
 import ArticleEditor from "./components/ArticleEditor";
 import Calendar from "./components/Calendar";
 import StatsDashboard from "./components/StatsDashboard";
-import { fetchPubMedArticles, fetchAllAPISources, fetchAllRSSSources, fetchAllScrapeSources } from "./services/collectorService";
-import { rssSources, scrapeSources } from "./services/sourceConfig";
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [bypassAuth, setBypassAuth] = useState(false);
 
   useEffect(() => {
@@ -46,38 +31,6 @@ export default function App() {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Login failed", error);
-    }
-  };
-
-  const handleLogout = () => {
-    signOut(auth);
-    setBypassAuth(false);
-  };
-
-  const handleRefreshData = async () => {
-    setIsRefreshing(true);
-    try {
-      const [apiArticles, rssArticles, scrapeArticles, pubmedArticles] = await Promise.all([
-        fetchAllAPISources(),
-        fetchAllRSSSources(),
-        fetchAllScrapeSources(),
-        fetchPubMedArticles()
-      ]);
-      
-      const allArticles = [
-        ...apiArticles,
-        ...rssArticles,
-        ...scrapeArticles,
-        ...pubmedArticles
-      ];
-      
-      console.log(`Fetched ${allArticles.length} articles from all sources`);
-      alert(`✅ Données rafraîchies! ${allArticles.length} articles collectés.`);
-    } catch (error) {
-      console.error("Refresh failed", error);
-      alert("Erreur lors du rafraîchissement des données.");
-    } finally {
-      setIsRefreshing(false);
     }
   };
 
@@ -122,67 +75,13 @@ export default function App() {
 
   return (
     <Router>
-      <div className="flex min-h-screen bg-slate-50">
-        {/* Sidebar */}
-        <aside className="w-64 lg:w-72 xl:w-80 bg-white border-r border-slate-200 flex flex-col fixed lg:static inset-y-0 left-0 z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
-          <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-slate-100">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <Stethoscope className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
-            </div>
-            <span className="font-bold text-lg lg:text-xl text-slate-900">MedWatch</span>
-          </div>
-
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            <NavLink to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" />
-            <NavLink to="/calendar" icon={<CalendarIcon size={20} />} label="Calendrier" />
-            <NavLink to="/stats" icon={<BarChart3 size={20} />} label="Statistiques" />
-          </nav>
-
-          <div className="p-4 border-t border-slate-100 space-y-2">
-            <button
-              onClick={handleRefreshData}
-              disabled={isRefreshing}
-              className="w-full flex items-center gap-3 px-4 py-2 text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors disabled:opacity-50 text-sm lg:text-base"
-            >
-              <RefreshCw size={20} className={isRefreshing ? "animate-spin" : ""} />
-              <span>Rafraîchir</span>
-            </button>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-2 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors text-sm lg:text-base"
-            >
-              <LogOut size={20} />
-              <span>Déconnexion</span>
-            </button>
-          </div>
-        </aside>
-
-        {/* Mobile overlay */}
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden hidden" id="sidebar-overlay"></div>
-
-        {/* Main Content */}
-        <main className="flex-1 lg:ml-0 overflow-y-auto min-h-screen">
-          <Routes>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/editor/:id" element={<ArticleEditor />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/stats" element={<StatsDashboard />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </main>
-      </div>
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/editor/:id" element={<ArticleEditor />} />
+        <Route path="/calendar" element={<Calendar />} />
+        <Route path="/stats" element={<StatsDashboard />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
     </Router>
-  );
-}
-
-function NavLink({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
-  return (
-    <Link
-      to={to}
-      className="flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 hover:text-blue-600 rounded-xl transition-all font-medium"
-    >
-      {icon}
-      {label}
-    </Link>
   );
 }
