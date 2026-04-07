@@ -106,7 +106,9 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 lg:w-72 xl:w-80 bg-white border-r border-slate-200 flex flex-col transform ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out`}>
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 lg:w-72 xl:w-80 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ease-in-out ${
+        showMobileMenu ? 'translate-x-0' : 'lg:translate-x-0 -translate-x-full'
+      }`}>
         <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-slate-100">
           <div className="bg-blue-600 p-2 rounded-lg">
             <Stethoscope className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
