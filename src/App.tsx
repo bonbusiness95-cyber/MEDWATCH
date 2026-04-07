@@ -5,7 +5,8 @@ import {
   Route, 
   Navigate
 } from "react-router-dom";
-import { onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { Stethoscope } from "lucide-react";
 import { auth } from "./firebase";
 import Dashboard from "./components/Dashboard";
 import ArticleEditor from "./components/ArticleEditor";

@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { auth, db } from "../firebase";
+import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { Edit2, XCircle, ExternalLink, BrainCircuit, Filter, X, Menu, LayoutDashboard, Calendar as CalendarIcon, BarChart3, Settings, LogOut, RefreshCw, Stethoscope } from "lucide-react";
 import { fetchAllAPISources, fetchAllRSSSources, fetchAllScrapeSources, fetchPubMedArticles } from "../services/collectorService";
+import { analyzeArticle } from "../services/geminiService";
+import { allSources } from "../services/sourceConfig";
 
 export default function Dashboard() {
   const [articles, setArticles] = useState<any[]>([]);
