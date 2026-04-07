@@ -104,7 +104,7 @@ export default function Dashboard() {
     : allSources.filter(s => s.category === categoryFilter);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex">
       {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 lg:w-72 xl:w-80 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ease-in-out ${
         showMobileMenu ? 'translate-x-0' : 'lg:translate-x-0 -translate-x-full'
@@ -150,7 +150,7 @@ export default function Dashboard() {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-0 overflow-y-auto min-h-screen">
+      <main className="flex-1 overflow-y-auto min-h-screen">
       <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
