@@ -1,1 +1,42 @@
 @import "tailwindcss";
+
+/* Custom styles for better responsive design */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile menu animation */
+@media (max-width: 1024px) {
+  .sidebar-mobile {
+    transform: translateX(-100%);
+  }
+
+  .sidebar-mobile.open {
+    transform: translateX(0);
+  }
+}

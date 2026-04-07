@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
-import { Edit2, XCircle, ExternalLink, BrainCircuit, Filter, X } from "lucide-react";
+import { Edit2, XCircle, ExternalLink, BrainCircuit, Filter, X, Menu } from "lucide-react";
 import { analyzeArticle } from "../services/geminiService";
 import { allSources } from "../services/sourceConfig";
 
@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [categoryFilter, setCategoryFilter] = useState<"all" | "api" | "rss" | "scrape">("all");
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [showSourcePanel, setShowSourcePanel] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -72,15 +73,24 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Veille Médicale
-              </h1>
-              <p className="text-slate-500 text-sm mt-1">Collecte, analyse et publication d'articles médicaux</p>
+        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-4">
+              {/* Mobile menu button */}
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <Menu size={20} />
+              </button>
+              <div>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Veille Médicale
+                </h1>
+                <p className="text-slate-500 text-sm mt-1">Collecte, analyse et publication d'articles médicaux</p>
+              </div>
             </div>
-            <div className="flex gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <div className="flex flex-wrap gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200 w-full sm:w-auto">
               <StatusButton active={filter === "pending"} onClick={() => setFilter("pending")} label="📋 En attente" />
               <StatusButton active={filter === "approved"} onClick={() => setFilter("approved")} label="✅ Approuvés" />
               <StatusButton active={filter === "published"} onClick={() => setFilter("published")} label="🚀 Publiés" />
@@ -89,22 +99,24 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Source Filter Panel */}
-        <div className="mb-8">
+        <div className="mb-6 lg:mb-8">
           <button
             onClick={() => setShowSourcePanel(!showSourcePanel)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors font-semibold text-slate-700"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors font-semibold text-slate-700 w-full sm:w-auto"
           >
             <Filter size={18} />
-            Filtrer par sources ({sourcefilters.length})
+            <span className="hidden sm:inline">Filtrer par sources</span>
+            <span className="sm:hidden">Filtres</span>
+            ({sourcefilters.length})
             {showSourcePanel ? <X size={16} /> : <span className="ml-auto">▼</span>}
           </button>
 
           {showSourcePanel && (
-            <div className="mt-4 bg-white border border-slate-200 rounded-xl p-6 shadow-lg">
+            <div className="mt-4 bg-white border border-slate-200 rounded-xl p-4 lg:p-6 shadow-lg">
               {/* Category tabs */}
-              <div className="flex gap-2 mb-6 pb-4 border-b border-slate-200">
+              <div className="flex flex-wrap gap-2 mb-6 pb-4 border-b border-slate-200">
                 <CategoryTab
                   active={categoryFilter === "all"}
                   onClick={() => setCategoryFilter("all")}
@@ -126,25 +138,25 @@ export default function Dashboard() {
                 <CategoryTab
                   active={categoryFilter === "scrape"}
                   onClick={() => setCategoryFilter("scrape")}
-                  label="Web Scrape (17)"
+                  label="Web (17)"
                   icon="🕷️"
                 />
               </div>
 
               {/* Source grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 lg:gap-3">
                 {filteredSources.map((source) => (
                   <button
                     key={source.name}
                     onClick={() => toggleSourceFilter(source.name)}
-                    className={`p-3 rounded-lg border-2 transition-all text-sm font-semibold text-center ${
+                    className={`p-2 lg:p-3 rounded-lg border-2 transition-all text-xs lg:text-sm font-semibold text-center ${
                       sourcefilters.includes(source.name)
                         ? "border-blue-500 bg-blue-50 text-blue-700"
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                     }`}
                   >
-                    <div className="text-lg mb-1">{source.icon}</div>
-                    <div className="line-clamp-2">{source.label}</div>
+                    <div className="text-base lg:text-lg mb-1">{source.icon}</div>
+                    <div className="line-clamp-2 leading-tight">{source.label}</div>
                   </button>
                 ))}
               </div>
@@ -162,13 +174,13 @@ export default function Dashboard() {
         </div>
         {/* Articles Grid */}
         {articles.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-16 text-center">
+          <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 lg:p-16 text-center">
             <div className="text-4xl mb-4">📭</div>
-            <p className="text-slate-500 font-semibold">Aucun article trouvé</p>
+            <p className="text-slate-500 font-semibold text-lg">Aucun article trouvé</p>
             <p className="text-slate-400 text-sm mt-2">Essayez de modifier les filtres ou attendez que les sources se synchronisent</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
             {articles.map((article) => (
               <div key={article.id}>
                 <ArticleCard
@@ -199,7 +211,7 @@ function StatusButton({
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+      className={`px-3 lg:px-4 py-2 rounded-lg text-xs lg:text-sm font-semibold transition-all flex-1 sm:flex-none ${
         active
           ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md"
           : "text-slate-600 hover:text-slate-900 hover:bg-white"
@@ -224,14 +236,15 @@ function CategoryTab({
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${
+      className={`px-3 lg:px-4 py-2 rounded-lg font-semibold text-xs lg:text-sm transition-all flex items-center gap-2 ${
         active
           ? "bg-blue-100 text-blue-700 border-b-2 border-blue-600"
           : "text-slate-600 hover:text-slate-900"
       }`}
     >
-      <span className="text-lg">{icon}</span>
-      {label}
+      <span className="text-base lg:text-lg">{icon}</span>
+      <span className="hidden sm:inline">{label}</span>
+      <span className="sm:hidden">{label.split(' ')[0]}</span>
     </button>
   );
 }
@@ -252,12 +265,12 @@ function ArticleCard({
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-xl transition-all overflow-hidden group">
       {/* Header with source badge */}
-      <div className="p-4 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
-        <div className="flex items-center justify-between mb-2">
+      <div className="p-3 lg:p-4 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
           <SourceBadge source={article.source} />
           {article.reliability_score && (
             <div className="flex items-center gap-2">
-              <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div className="w-20 lg:w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${
                     article.reliability_score > 70 ? "bg-green-500" : "bg-orange-500"
@@ -273,8 +286,8 @@ function ArticleCard({
       </div>
 
       {/* Content */}
-      <div className="p-5">
-        <h3 className="text-lg font-bold text-slate-900 mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors">
+      <div className="p-4 lg:p-5">
+        <h3 className="text-base lg:text-lg font-bold text-slate-900 mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors">
           {article.title}
         </h3>
         <p className="text-slate-600 text-sm line-clamp-3 mb-4">
@@ -309,12 +322,12 @@ function ArticleCard({
       </div>
 
       {/* Actions */}
-      <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex gap-2">
+      <div className="px-4 lg:px-5 py-3 lg:py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row gap-2">
         {!article.summary_facebook ? (
           <button
             onClick={onAnalyze}
             disabled={isAnalyzing}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 font-semibold text-sm"
+            className="flex-1 flex items-center justify-center gap-2 px-3 lg:px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 font-semibold text-sm"
           >
             <BrainCircuit size={16} className={isAnalyzing ? "animate-spin" : ""} />
             {isAnalyzing ? "Analyse..." : "Analyser par IA"}
@@ -322,14 +335,14 @@ function ArticleCard({
         ) : (
           <button
             onClick={onEdit}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm"
+            className="flex-1 flex items-center justify-center gap-2 px-3 lg:px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold text-sm"
           >
             <Edit2 size={16} /> Éditer & Publier
           </button>
         )}
         <button
           onClick={onReject}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all font-semibold text-sm border border-red-200"
+          className="flex items-center justify-center gap-2 px-3 lg:px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all font-semibold text-sm border border-red-200"
         >
           <XCircle size={16} />
         </button>

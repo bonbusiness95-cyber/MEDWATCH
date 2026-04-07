@@ -122,16 +122,16 @@ export default function App() {
 
   return (
     <Router>
-      <div className="flex h-screen bg-slate-50 overflow-hidden">
+      <div className="flex min-h-screen bg-slate-50">
         {/* Sidebar */}
-        <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
-          <div className="p-6 flex items-center gap-3 border-b border-slate-100">
+        <aside className="w-64 lg:w-72 xl:w-80 bg-white border-r border-slate-200 flex flex-col fixed lg:static inset-y-0 left-0 z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
+          <div className="p-4 lg:p-6 flex items-center gap-3 border-b border-slate-100">
             <div className="bg-blue-600 p-2 rounded-lg">
-              <Stethoscope className="w-6 h-6 text-white" />
+              <Stethoscope className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
             </div>
-            <span className="font-bold text-xl text-slate-900">MedWatch</span>
+            <span className="font-bold text-lg lg:text-xl text-slate-900">MedWatch</span>
           </div>
-          
+
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             <NavLink to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" />
             <NavLink to="/calendar" icon={<CalendarIcon size={20} />} label="Calendrier" />
@@ -142,14 +142,14 @@ export default function App() {
             <button
               onClick={handleRefreshData}
               disabled={isRefreshing}
-              className="w-full flex items-center gap-3 px-4 py-2 text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors disabled:opacity-50"
+              className="w-full flex items-center gap-3 px-4 py-2 text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors disabled:opacity-50 text-sm lg:text-base"
             >
               <RefreshCw size={20} className={isRefreshing ? "animate-spin" : ""} />
               <span>Rafraîchir</span>
             </button>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-2 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors text-sm lg:text-base"
             >
               <LogOut size={20} />
               <span>Déconnexion</span>
@@ -157,8 +157,11 @@ export default function App() {
           </div>
         </aside>
 
+        {/* Mobile overlay */}
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden hidden" id="sidebar-overlay"></div>
+
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 lg:ml-0 overflow-y-auto min-h-screen">
           <Routes>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/editor/:id" element={<ArticleEditor />} />
