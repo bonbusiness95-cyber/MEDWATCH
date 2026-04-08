@@ -67,25 +67,21 @@ export default function Dashboard() {
   const handleRefreshData = async () => {
     setIsRefreshing(true);
     try {
-      const [apiArticles, rssArticles, scrapeArticles, pubmedArticles] = await Promise.all([
-        fetchAllAPISources(),
-        fetchAllRSSSources(),
-        fetchAllScrapeSources(),
-        fetchPubMedArticles()
-      ]);
+      // Trigger backend collection
+      const response = await fetch("/api/admin/collect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
 
-      const allArticles = [
-        ...apiArticles,
-        ...rssArticles,
-        ...scrapeArticles,
-        ...pubmedArticles
-      ];
-
-      console.log(`Fetched ${allArticles.length} articles from all sources`);
-      alert(`✅ Données rafraîchies! ${allArticles.length} articles collectés.`);
+      if (!response.ok) throw new Error("Collection failed");
+      
+      const data = await response.json();
+      const { totalSaved, totalSkipped } = data.result;
+      
+      alert(`✅ Collection complète!\n✨ ${totalSaved} nouveaux articles\n📋 ${totalSkipped} doublons ignorés`);
     } catch (error) {
-      console.error("Refresh failed", error);
-      alert("Erreur lors du rafraîchissement des données.");
+      console.error("Collection error", error);
+      alert("❌ Erreur lors de la collecte. Vérifiez la console.");
     } finally {
       setIsRefreshing(false);
     }

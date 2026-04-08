@@ -5,15 +5,50 @@ import axios from "axios";
 import FeedParser from "feedparser";
 import * as cheerio from "cheerio";
 import dotenv from "dotenv";
+import admin from "firebase-admin";
+import { createRequire } from "module";
+import { runBackgroundCollection } from "./server/backgroundCollector.js";
 
 // Load environment variables
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 dotenv.config();
+
+// Initialize Firebase Admin
+const requireModule = createRequire(__filename);
+const serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "./firebase-service-account.json");
+try {
+  const serviceAccount = requireModule(serviceAccountPath);
+  const credential = admin.credential.cert(serviceAccount);
+  admin.initializeApp({ credential });
+  console.log("✅ Firebase Admin initialized");
+} catch (error) {
+  console.warn("⚠️ Firebase Admin not initialized - background collection will not work");
+  console.warn("Set FIREBASE_SERVICE_ACCOUNT_PATH environment variable or place firebase-service-account.json at project root");
+  console.warn(error);
+}
 
 async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || "3000", 10);
 
   app.use(express.json());
+
+  // Health check
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // Manual trigger for collection (for testing)
+  app.post("/api/admin/collect", async (req, res) => {
+    try {
+      console.log("🚀 Manual collection triggered");
+      const result = await runBackgroundCollection();
+      res.json({ success: true, result });
+    } catch (error: any) {
+      console.error("Collection error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
 
   // API Routes
   
@@ -278,13 +313,23 @@ async function startServer() {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
     
-    // Background Scraping Task (Every hour)
+    // Background collection every 6 hours
+    console.log("⏰ Background collection scheduler started");
+    
+    // Initial collection on startup (after 30 seconds)
+    setTimeout(async () => {
+      console.log("🔄 Running initial collection on startup...");
+      await runBackgroundCollection();
+    }, 30000);
+    
+    // Recurring collection every 6 hours
     setInterval(async () => {
-      console.log("Running background medical watch...");
-      // In a real app, we would call the scraping logic here
-      // and save to Firestore using a service account or admin SDK.
-      // For this environment, we'll keep it simple.
-    }, 3600000);
+      try {
+        await runBackgroundCollection();
+      } catch (error) {
+        console.error("Background collection error:", error);
+      }
+    }, 6 * 60 * 60 * 1000);
   });
 }
 
