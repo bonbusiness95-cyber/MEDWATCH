@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && npm run build:server",
-    "build:server": "tsc -p tsconfig.server.json && node -e \"require('fs').renameSync('dist/server.js', 'dist/server.cjs')\"",
-    "start": "node dist/server.cjs",
+    "build:server": "tsc -p tsconfig.server.json",
+    "start": "node dist/server.js",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"

@@ -1,6 +1,7 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import { fileURLToPath } from "url";
 import axios from "axios";
 import FeedParser from "feedparser";
 import * as cheerio from "cheerio";
@@ -9,12 +10,16 @@ import admin from "firebase-admin";
 import { createRequire } from "module";
 import { runBackgroundCollection } from "./server/backgroundCollector.js";
 
+// Set up __dirname and __filename for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 dotenv.config();
 
 // Initialize Firebase Admin
-const requireModule = createRequire(__filename);
+const requireModule = createRequire(import.meta.url);
 const serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "./firebase-service-account.json");
 try {
   const serviceAccount = requireModule(serviceAccountPath);
