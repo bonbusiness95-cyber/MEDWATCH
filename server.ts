@@ -22,18 +22,29 @@ dotenv.config();
 const requireModule = createRequire(import.meta.url);
 let firebaseInitialized = false;
 
+console.log("🔧 Initializing Firebase...");
+console.log("   FIREBASE_SERVICE_ACCOUNT_JSON:", process.env.FIREBASE_SERVICE_ACCOUNT_JSON ? "✅ SET (length: " + process.env.FIREBASE_SERVICE_ACCOUNT_JSON.length + ")" : "❌ NOT SET");
+console.log("   FIREBASE_SERVICE_ACCOUNT_PATH:", process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "default");
+
 try {
   // Try environment variable first (for Render deployment)
   if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    console.log("📝 Parsing FIREBASE_SERVICE_ACCOUNT_JSON...");
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    console.log("✅ JSON parsed successfully");
+    console.log("   Project ID:", serviceAccount.project_id);
     const credential = admin.credential.cert(serviceAccount);
     admin.initializeApp({ credential });
     firebaseInitialized = true;
     console.log("✅ Firebase Admin initialized from environment variable");
   } else {
+    console.log("📁 Trying to load from file...");
     // Fallback to file
     const serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "./firebase-service-account.json");
+    console.log("   Path:", serviceAccountPath);
     const serviceAccount = requireModule(serviceAccountPath);
+    console.log("✅ Service account file loaded");
+    console.log("   Project ID:", serviceAccount.project_id);
     const credential = admin.credential.cert(serviceAccount);
     admin.initializeApp({ credential });
     firebaseInitialized = true;
@@ -54,6 +65,41 @@ async function startServer() {
   // Health check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // Diagnostic endpoint
+  app.get("/api/diagnostic", async (req, res) => {
+    try {
+      let firebaseStatus = "❌ NOT INITIALIZED";
+      let articlesCount = 0;
+      
+      if (firebaseInitialized) {
+        firebaseStatus = "✅ INITIALIZED";
+        try {
+          const snapshot = await admin.firestore().collection("articles").get();
+          articlesCount = snapshot.size;
+        } catch (e: any) {
+          firebaseStatus = "⚠️ INITIALIZED BUT CANNOT ACCESS DATA: " + e.message;
+        }
+      }
+
+      res.json({
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        firebase: firebaseStatus,
+        articlesInDatabase: articlesCount,
+        environment: {
+          NODE_ENV: process.env.NODE_ENV,
+          PORT: process.env.PORT,
+          FIREBASE_SERVICE_ACCOUNT_JSON_SET: !!process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: "error",
+        error: error.message
+      });
+    }
   });
 
   // Manual trigger for collection (for testing)

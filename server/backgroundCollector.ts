@@ -27,14 +27,14 @@ const classifyArticle = (article: any) => {
 
 // Deduplicate articles before saving
 const deduplicateAndSave = async (articles: any[]) => {
+  let db;
   try {
-    const db = admin.firestore();
+    db = admin.firestore();
   } catch (error) {
     console.warn("⚠️ Firebase not available, skipping article save");
     return { saved: 0, skipped: articles.length };
   }
 
-  const db = getDb();
   let saved = 0;
   let skipped = 0;
 
@@ -1092,6 +1092,13 @@ export const runBackgroundCollection = async () => {
 
   console.log(`\n✅ Collection complete in ${duration}s`);
   console.log(`📊 Total: ${totalSaved} saved, ${totalSkipped} skipped`);
+  console.log("\n📋 Detailed Results:");
+  results.forEach((r: any) => {
+    if (r.saved > 0 || r.skipped > 0) {
+      const status = r.saved > 0 ? "✅" : "⏭️ ";
+      console.log(`   ${status} ${r.source}: ${r.saved} saved, ${r.skipped} skipped`);
+    }
+  });
   console.log("=====================================\n");
 
   return { totalSaved, totalSkipped, duration };
