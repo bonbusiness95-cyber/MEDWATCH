@@ -20,16 +20,29 @@ dotenv.config();
 
 // Initialize Firebase Admin
 const requireModule = createRequire(import.meta.url);
-const serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "./firebase-service-account.json");
+let firebaseInitialized = false;
+
 try {
-  const serviceAccount = requireModule(serviceAccountPath);
-  const credential = admin.credential.cert(serviceAccount);
-  admin.initializeApp({ credential });
-  console.log("✅ Firebase Admin initialized");
+  // Try environment variable first (for Render deployment)
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    const credential = admin.credential.cert(serviceAccount);
+    admin.initializeApp({ credential });
+    firebaseInitialized = true;
+    console.log("✅ Firebase Admin initialized from environment variable");
+  } else {
+    // Fallback to file
+    const serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "./firebase-service-account.json");
+    const serviceAccount = requireModule(serviceAccountPath);
+    const credential = admin.credential.cert(serviceAccount);
+    admin.initializeApp({ credential });
+    firebaseInitialized = true;
+    console.log("✅ Firebase Admin initialized from file");
+  }
 } catch (error) {
   console.warn("⚠️ Firebase Admin not initialized - background collection will not work");
-  console.warn("Set FIREBASE_SERVICE_ACCOUNT_PATH environment variable or place firebase-service-account.json at project root");
-  console.warn(error);
+  console.warn("Set FIREBASE_SERVICE_ACCOUNT_JSON environment variable with service account JSON, or ensure firebase-service-account.json exists");
+  console.warn("Error details:", error.message);
 }
 
 async function startServer() {

@@ -13,6 +13,8 @@ services:
         sync: false
       - key: PORT
         value: 3000
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
     disk:
       name: medwatch-data
       mountPath: /data

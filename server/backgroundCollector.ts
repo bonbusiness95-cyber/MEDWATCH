@@ -27,6 +27,13 @@ const classifyArticle = (article: any) => {
 
 // Deduplicate articles before saving
 const deduplicateAndSave = async (articles: any[]) => {
+  try {
+    const db = admin.firestore();
+  } catch (error) {
+    console.warn("⚠️ Firebase not available, skipping article save");
+    return { saved: 0, skipped: articles.length };
+  }
+
   const db = getDb();
   let saved = 0;
   let skipped = 0;
@@ -1026,6 +1033,14 @@ export const collectWHOIRIS = async () => {
 
 // Main collection function
 export const runBackgroundCollection = async () => {
+  // Check if Firebase is available
+  try {
+    admin.firestore();
+  } catch (error) {
+    console.warn("⚠️ Firebase not available, skipping background collection");
+    return { totalSaved: 0, totalSkipped: 0, duration: "0.00" };
+  }
+
   const startTime = Date.now();
   console.log("\n📡 Starting background medical watch collection...");
 
