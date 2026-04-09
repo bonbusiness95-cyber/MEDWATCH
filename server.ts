@@ -95,7 +95,7 @@ async function startServer() {
   // Proxy for ClinicalTrials.gov
   app.get("/api/clinicaltrials", async (req, res) => {
     try {
-      const { term } = req.query;
+      const term = (req.query.term as string) || "all";
       const response = await axios.get("https://clinicaltrials.gov/api/v2/studies", {
         params: {
           query: term,
@@ -112,7 +112,16 @@ async function startServer() {
   // Proxy for Europe PMC
   app.get("/api/europepmc", async (req, res) => {
     try {
-      const { query } = req.query;
+      const rawQuery = req.query.query as string;
+      const query = rawQuery && rawQuery.trim().length > 0
+        ? rawQuery
+        : (() => {
+            const today = new Date();
+            const fromDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const formatDate = (date: Date) => date.toISOString().slice(0, 10).replace(/-/g, "");
+            return `FIRST_PDATE:[${formatDate(fromDate)} TO ${formatDate(today)}]`;
+          })();
+
       const response = await axios.get("https://www.ebi.ac.uk/europepmc/webservices/rest/search", {
         params: {
           query,
@@ -129,14 +138,15 @@ async function startServer() {
   // Proxy for OpenAlex
   app.get("/api/openalex", async (req, res) => {
     try {
-      const { search } = req.query;
-      const response = await axios.get("https://api.openalex.org/works", {
-        params: {
-          search,
-          per_page: 10,
-          sort: "publication_year:desc"
-        }
-      });
+      const params: any = {
+        per_page: 10,
+        sort: "publication_year:desc"
+      };
+      if (req.query.search) {
+        params.search = req.query.search;
+      }
+
+      const response = await axios.get("https://api.openalex.org/works", { params });
       res.json(response.data);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch from OpenAlex" });
@@ -157,13 +167,14 @@ async function startServer() {
   // Proxy for openFDA
   app.get("/api/openfda", async (req, res) => {
     try {
-      const { search } = req.query;
-      const response = await axios.get("https://api.fda.gov/drug/label.json", {
-        params: {
-          search,
-          limit: 10
-        }
-      });
+      const params: any = {
+        limit: 10
+      };
+      if (req.query.search) {
+        params.search = req.query.search;
+      }
+
+      const response = await axios.get("https://api.fda.gov/drug/label.json", { params });
       res.json(response.data);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch from openFDA" });
@@ -173,14 +184,15 @@ async function startServer() {
   // Proxy for ChEMBL
   app.get("/api/chembl", async (req, res) => {
     try {
-      const { query } = req.query;
-      const response = await axios.get("https://www.ebi.ac.uk/chembl/api/data/molecule", {
-        params: {
-          pref_name__icontains: query,
-          format: "json",
-          limit: 10
-        }
-      });
+      const params: any = {
+        format: "json",
+        limit: 10
+      };
+      if (req.query.query) {
+        params.pref_name__icontains = req.query.query;
+      }
+
+      const response = await axios.get("https://www.ebi.ac.uk/chembl/api/data/molecule", { params });
       res.json(response.data);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch from ChEMBL" });
@@ -192,11 +204,10 @@ async function startServer() {
   // For now, let's use a generic search proxy that could be adapted.
   app.get("/api/orphanet", async (req, res) => {
     try {
-      const { query } = req.query;
+      const queryString = (req.query.query as string) || "all";
       // Using a placeholder for Orphanet as their API is strictly controlled.
       // We can simulate it or use a related open source like Rare Disease Hub if needed.
-      // For this demo, let's assume we have an endpoint.
-      const response = await axios.get(`https://www.orpha.net/api/search?q=${query}`);
+      const response = await axios.get(`https://www.orpha.net/api/search?q=${encodeURIComponent(queryString)}`);
       res.json(response.data);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch from Orphanet" });

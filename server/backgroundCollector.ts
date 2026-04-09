@@ -6,6 +6,25 @@ import { rssSources, scrapeSources } from "../src/services/sourceConfig.js";
 
 const getDb = () => admin.firestore();
 
+// Classify article based on content
+const classifyArticle = (article: any) => {
+  const text = `${article.title} ${article.abstract}`.toLowerCase();
+  
+  if (text.includes("new drug") || text.includes("phase iii") || text.includes("fda approval") || text.includes("clinical trial results")) {
+    return { ...article, category: "medication" };
+  }
+  
+  if (text.includes("treatment guideline")) {
+    return { ...article, category: "guideline" };
+  }
+  
+  if (text.includes("rare case")) {
+    return { ...article, category: "rare_case" };
+  }
+  
+  return { ...article, category: "other" };
+};
+
 // Deduplicate articles before saving
 const deduplicateAndSave = async (articles: any[]) => {
   const db = getDb();
@@ -14,6 +33,10 @@ const deduplicateAndSave = async (articles: any[]) => {
 
   for (const article of articles) {
     if (!article.title || !article.source) continue;
+
+    // Classify the article
+    const classifiedArticle = classifyArticle(article);
+    const status = classifiedArticle.category === "other" ? "other" : "pending";
 
     try {
       const q = db.collection("articles")
@@ -24,9 +47,9 @@ const deduplicateAndSave = async (articles: any[]) => {
 
       if (snapshot.empty) {
         await db.collection("articles").add({
-          ...article,
+          ...classifiedArticle,
           created_at: admin.firestore.FieldValue.serverTimestamp(),
-          status: "pending"
+          status
         });
         saved++;
       } else {
@@ -42,7 +65,7 @@ const deduplicateAndSave = async (articles: any[]) => {
 
 // PubMed
 export const collectPubMed = async () => {
-  const term = '("new drug"[Title/Abstract] OR "phase III"[Title/Abstract] OR "FDA approval"[Title/Abstract] OR "clinical trial results"[Title/Abstract] OR "treatment guideline"[Title/Abstract])';
+  const term = "all[sb]";
 
   try {
     const searchRes = await axios.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi", {
@@ -94,7 +117,7 @@ export const collectClinicalTrials = async () => {
   try {
     const response = await axios.get("https://clinicaltrials.gov/api/v2/studies", {
       params: {
-        query: "medication treatment",
+        "query.term": "all",
         pageSize: 15,
         sort: "LastUpdatePostDate:desc"
       },
@@ -270,7 +293,6 @@ export const collectOpenFDA = async () => {
   try {
     const response = await axios.get("https://api.fda.gov/drug/label.json", {
       params: {
-        search: "adverse",
         limit: 10
       },
       timeout: 10000
@@ -301,7 +323,6 @@ export const collectCrossRef = async () => {
   try {
     const response = await axios.get("https://api.crossref.org/works", {
       params: {
-        query: "medical treatment drug",
         rows: 15,
         sort: "published"
       },
@@ -331,14 +352,29 @@ export const collectCrossRef = async () => {
 // Semantic Scholar
 export const collectSemanticScholar = async () => {
   try {
-    const response = await axios.get("https://api.semanticscholar.org/graph/v1/paper/search", {
-      params: {
-        query: "medical treatment drug therapy",
-        limit: 15,
-        fields: "title,abstract,url,year"
+    const requestConfig = {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "MedicalAggregator/1.0 (research@institution.org)"
       },
-      timeout: 10000
-    });
+      params: {
+        limit: 15,
+        fields: "title,abstract,url,year,citationCount,authors"
+      },
+      timeout: 15000
+    };
+
+    let response;
+    try {
+      response = await axios.get("https://api.semanticscholar.org/graph/v1/paper/search", requestConfig);
+    } catch (firstError: any) {
+      if (firstError.response?.status === 429) {
+        await new Promise((resolve) => setTimeout(resolve, 60000));
+        response = await axios.get("https://api.semanticscholar.org/graph/v1/paper/search", requestConfig);
+      } else {
+        throw firstError;
+      }
+    }
 
     const data = response.data.data || [];
     const articles = data.map((paper: any) => ({
@@ -365,7 +401,6 @@ export const collectChEMBL = async () => {
   try {
     const response = await axios.get("https://www.ebi.ac.uk/chembl/api/data/molecule", {
       params: {
-        pref_name__icontains: "treatment",
         format: "json",
         limit: 15
       },
@@ -395,22 +430,23 @@ export const collectChEMBL = async () => {
 // Orphanet
 export const collectOrphanet = async () => {
   try {
-    // Using Orphanet's public API or search endpoint
-    const response = await axios.get("https://www.orpha.net/api/search", {
+    const response = await axios.get("https://api.orphadata.com/api/v1/rd-genes", {
       params: {
-        q: "rare disease treatment",
-        lang: "EN"
       },
-      timeout: 10000
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "MedicalAggregator/1.0"
+      },
+      timeout: 15000
     });
 
-    const disorders = response.data.DisorderList?.Disorder || [];
-    const articles = (Array.isArray(disorders) ? disorders : [disorders]).slice(0, 15).map((d: any) => ({
+    const genes = response.data?.results || response.data?.items || response.data?.genes || response.data || [];
+    const articles = (Array.isArray(genes) ? genes : [genes]).slice(0, 15).map((item: any) => ({
       source: "orphanet",
-      external_id: d["@id"],
-      title: d.Name,
-      abstract: `Rare disease - Status: ${d.DisorderStatus}`,
-      url: `https://www.orpha.net/consor/cgi-bin/OC_Exp.php?Lng=EN&Expert=${d["@id"]}`,
+      external_id: item.id || item.geneId || item.name,
+      title: item.name || item.Description || "Orphanet gene association",
+      abstract: item.description || item.Summary || "",
+      url: item.url || "https://www.orphadata.com/",
       published_date: new Date().toISOString(),
       type: "rare_disease"
     }));
@@ -419,45 +455,88 @@ export const collectOrphanet = async () => {
     console.log(`✅ Orphanet: saved ${result.saved}, skipped ${result.skipped}`);
     return { source: "orphanet", ...result };
   } catch (error) {
-    console.error("❌ Orphanet error:", error);
-    return { source: "orphanet", saved: 0, skipped: 0 };
+    console.warn("⚠️ Orphanet JSON API failed, using XML fallback:", error);
+    try {
+      const xmlResponse = await axios.get("https://www.orphadata.com/data/xml/en_product6.xml", {
+        headers: {
+          Accept: "application/xml",
+          "User-Agent": "MedicalAggregator/1.0"
+        },
+        timeout: 15000
+      });
+
+      const $ = cheerio.load(xmlResponse.data, { xmlMode: true });
+      const disorders: any[] = [];
+
+      $('Disorder').each((_, el) => {
+        const id = $(el).find('OrphaCode').text().trim();
+        const name = $(el).find('Name').text().trim();
+        if (id && name) {
+          disorders.push({
+            source: "orphanet",
+            external_id: id,
+            title: name,
+            abstract: $(el).find('TypeOfRareDisease').text().trim() || "",
+            url: `https://www.orphadata.com/land/${id}`,
+            published_date: new Date().toISOString(),
+            type: "rare_disease"
+          });
+        }
+      });
+
+      const result = await deduplicateAndSave(disorders.slice(0, 15));
+      console.log(`✅ Orphanet XML fallback: saved ${result.saved}, skipped ${result.skipped}`);
+      return { source: "orphanet", ...result };
+    } catch (fallbackError) {
+      console.error("❌ Orphanet error:", fallbackError);
+      return { source: "orphanet", saved: 0, skipped: 0 };
+    }
   }
 };
 
 // DrugBank
 export const collectDrugBank = async () => {
   try {
-    // DrugBank has limited public API, using search endpoint
-    const response = await axios.get("https://www.drugbank.ca/unearth/q", {
-      params: {
-        searcher: "drugs",
-        query: "treatment",
-        limit: 15
+    const searchResponse = await axios.get("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/treatment/cids/JSON", {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "MedicalAggregator/1.0"
       },
-      timeout: 10000
+      timeout: 15000
     });
 
-    // DrugBank returns HTML, we'll extract basic info
-    const $ = cheerio.load(response.data);
-    const drugs: any[] = [];
+    const cids = searchResponse.data?.IdentifierList?.CID || [];
+    const articles: any[] = [];
 
-    $('.drug-card, .result-item').each((_, el) => {
-      const title = $(el).find('h3, .drug-name').text().trim();
-      const link = $(el).find('a').attr('href');
-      if (title && link) {
-        drugs.push({
+    for (const cid of cids.slice(0, 10)) {
+      try {
+        const propertiesResponse = await axios.get(
+          `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/property/IUPACName,MolecularFormula,MolecularWeight/JSON`,
+          {
+            headers: {
+              Accept: "application/json",
+              "User-Agent": "MedicalAggregator/1.0"
+            },
+            timeout: 15000
+          }
+        );
+
+        const props = propertiesResponse.data?.PropertyTable?.Properties?.[0] || {};
+        articles.push({
           source: "drugbank",
-          external_id: link.split('/').pop(),
-          title: title,
-          abstract: "DrugBank entry",
-          url: `https://www.drugbank.ca${link}`,
+          external_id: `pubchem-${cid}`,
+          title: props.IUPACName || `PubChem Compound ${cid}`,
+          abstract: `Formula: ${props.MolecularFormula || "n/a"}, MW: ${props.MolecularWeight || "n/a"}`,
+          url: `https://pubchem.ncbi.nlm.nih.gov/compound/${cid}`,
           published_date: new Date().toISOString(),
-          type: "drug"
+          type: "compound"
         });
+      } catch (innerError) {
+        console.warn(`DrugBank PubChem fallback failed for CID ${cid}:`, innerError);
       }
-    });
+    }
 
-    const result = await deduplicateAndSave(drugs.slice(0, 15));
+    const result = await deduplicateAndSave(articles.slice(0, 15));
     console.log(`✅ DrugBank: saved ${result.saved}, skipped ${result.skipped}`);
     return { source: "drugbank", ...result };
   } catch (error) {
@@ -617,23 +696,42 @@ export const collectClinVar = async () => {
 // PharmGKB
 export const collectPharmGKB = async () => {
   try {
-    const response = await axios.get("https://api.pharmgkb.org/v1/data/guideline/list", {
-      params: {
-        view: "base",
-        limit: 15
-      },
-      timeout: 10000
-    });
+    let chemicals: any[] = [];
+    try {
+      const response = await axios.get("https://api.pharmgkb.org/v1/data/chemical/", {
+        params: {
+          name: "treatment"
+        },
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "MedicalAggregator/1.0"
+        },
+        timeout: 15000
+      });
+      chemicals = response.data?.data || response.data || [];
+    } catch (apiError: any) {
+      if (apiError.response?.status === 404) {
+        const fallbackResponse = await axios.get("https://api.pharmgkb.org/v1/data/chemical?name=aspirin", {
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "MedicalAggregator/1.0"
+          },
+          timeout: 15000
+        });
+        chemicals = fallbackResponse.data?.data || fallbackResponse.data || [];
+      } else {
+        throw apiError;
+      }
+    }
 
-    const data = response.data || [];
-    const articles = data.map((guideline: any) => ({
+    const articles = (Array.isArray(chemicals) ? chemicals : [chemicals]).slice(0, 15).map((chem: any) => ({
       source: "pharmgkb",
-      external_id: guideline.id,
-      title: guideline.title || "PharmGKB Guideline",
-      abstract: guideline.summary || "",
-      url: `https://www.pharmgkb.org/guideline/${guideline.id}`,
+      external_id: chem.id || chem.name,
+      title: chem.name || chem.id || "PharmGKB Chemical",
+      abstract: chem.description || chem.synonyms?.join(", ") || "",
+      url: chem.id ? `https://www.pharmgkb.org/chemical/${chem.id}` : "https://www.pharmgkb.org/",
       published_date: new Date().toISOString(),
-      type: "guideline"
+      type: "chemical"
     }));
 
     const result = await deduplicateAndSave(articles);
@@ -691,31 +789,34 @@ export const collectDisGeNET = async () => {
 // Open Targets
 export const collectOpenTargets = async () => {
   try {
-    const response = await axios.post("https://api.platform.opentargets.org/api/v4/graphql", {
-      query: `
-        query {
-          search(queryString: "treatment") {
-            hits {
-              id
-              name
-              entity
-            }
-          }
+    const response = await axios.post(
+      "https://api.platform.opentargets.org/api/v4/graphql",
+      {
+        query: `query TargetDetails($ensemblId: String!) { target(ensemblId: $ensemblId) { id approvedSymbol approvedName biotype associatedDiseases(page: {index: 0, size: 25}) { rows { disease { id name } score } } } }`,
+        variables: {
+          ensemblId: "ENSG00000133703"
         }
-      `
-    }, {
-      timeout: 10000
-    });
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "User-Agent": "MedicalAggregator/1.0"
+        },
+        timeout: 15000
+      }
+    );
 
-    const hits = response.data.data?.search?.hits || [];
-    const articles = hits.slice(0, 15).map((hit: any) => ({
+    const target = response.data.data?.target;
+    const diseaseRows = target?.associatedDiseases?.rows || [];
+    const articles = diseaseRows.slice(0, 15).map((row: any) => ({
       source: "open_targets",
-      external_id: hit.id,
-      title: hit.name,
-      abstract: `Open Targets ${hit.entity}`,
-      url: `https://platform.opentargets.org/${hit.entity}/${hit.id}`,
+      external_id: row.disease?.id || target.id,
+      title: `${target.approvedSymbol || target.id} — ${row.disease?.name}`,
+      abstract: `Target ${target.approvedName || target.approvedSymbol} linked to ${row.disease?.name} (score ${row.score})`,
+      url: `https://platform.opentargets.org/target/${target.id}`,
       published_date: new Date().toISOString(),
-      type: "target"
+      type: "target_disease"
     }));
 
     const result = await deduplicateAndSave(articles);
@@ -730,27 +831,40 @@ export const collectOpenTargets = async () => {
 // RCSB PDB
 export const collectRCSBPDB = async () => {
   try {
-    const response = await axios.get("https://search.rcsb.org/rcsbsearch/v2/query", {
-      params: {
-        json: JSON.stringify({
-          query: {
-            type: "terminal",
-            service: "text",
-            parameters: {
-              value: "treatment"
-            }
-          },
-          return_type: "entry",
-          request_options: {
-            paginate: {
-              start: 0,
-              rows: 15
-            }
+    const response = await axios.post(
+      "https://search.rcsb.org/rcsbsearch/v2/query",
+      {
+        query: {
+          type: "terminal",
+          service: "text",
+          parameters: {
+            attribute: "struct.title",
+            operator: "contains_words",
+            value: "treatment"
           }
-        })
+        },
+        return_type: "entry",
+        request_options: {
+          paginate: {
+            start: 0,
+            rows: 15
+          },
+          sort: [
+            {
+              sort_by: "score",
+              direction: "desc"
+            }
+          ]
+        }
       },
-      timeout: 10000
-    });
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent": "MedicalAggregator/1.0"
+        },
+        timeout: 15000
+      }
+    );
 
     const results = response.data.result_set || [];
     const articles = results.map((entry: any) => ({
@@ -805,78 +919,103 @@ export const collectGEONCBI = async () => {
   }
 };
 
-// EMA SPOR - using public search page
+// EMA SPOR - using public export endpoint when available
 export const collectEMASPOR = async () => {
   try {
-    const response = await axios.get("https://www.ema.europa.eu/en/search", {
-      params: {
-        q: "treatment",
-        type: "medicinal_product"
+    const response = await axios.get("https://spor.ema.europa.eu/rmswi/api/export/medicinal_products", {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Mozilla/5.0 (compatible; MedicalBot/1.0)"
       },
-      timeout: 10000
+      timeout: 20000
     });
 
-    const $ = cheerio.load(response.data);
-    const products: any[] = [];
+    const products = Array.isArray(response.data)
+      ? response.data
+      : response.data?.items || response.data?.results || [];
 
-    $('.search-result, article').each((_, el) => {
-      const title = $(el).find('h2, h3').text().trim();
-      const link = $(el).find('a').attr('href');
+    const articles = (Array.isArray(products) ? products : []).slice(0, 15).map((product: any) => ({
+      source: "ema_spor",
+      external_id: product.id || product.medicinalProductId || product.name,
+      title: product.name || product.medicinalProductName || "EMA SPOR Product",
+      abstract: product.description || product.medicinalProductDescription || "EMA medicinal product",
+      url: product.url || "https://spor.ema.europa.eu",
+      published_date: new Date().toISOString(),
+      type: "medicinal_product"
+    }));
 
-      if (title && link) {
-        products.push({
-          source: "ema_spor",
-          external_id: link.split('/').pop(),
-          title: title,
-          abstract: "EMA medicinal product",
-          url: link.startsWith('http') ? link : `https://www.ema.europa.eu${link}`,
-          published_date: new Date().toISOString(),
-          type: "drug"
-        });
-      }
-    });
-
-    const result = await deduplicateAndSave(products.slice(0, 15));
+    const result = await deduplicateAndSave(articles);
     console.log(`✅ EMA SPOR: saved ${result.saved}, skipped ${result.skipped}`);
     return { source: "ema_spor", ...result };
   } catch (error) {
-    console.error("❌ EMA SPOR error:", error);
-    return { source: "ema_spor", saved: 0, skipped: 0 };
+    console.warn("⚠️ EMA SPOR export failed, falling back to web search:", error);
+    try {
+      const response = await axios.get("https://www.ema.europa.eu/en/search", {
+        params: {
+          q: "treatment",
+          type: "medicinal_product"
+        },
+        timeout: 15000
+      });
+
+      const $ = cheerio.load(response.data);
+      const products: any[] = [];
+
+      $('.search-result, article').each((_, el) => {
+        const title = $(el).find('h2, h3').text().trim();
+        const link = $(el).find('a').attr('href');
+
+        if (title && link) {
+          products.push({
+            source: "ema_spor",
+            external_id: link.split('/').pop(),
+            title: title,
+            abstract: "EMA medicinal product",
+            url: link.startsWith('http') ? link : `https://www.ema.europa.eu${link}`,
+            published_date: new Date().toISOString(),
+            type: "drug"
+          });
+        }
+      });
+
+      const result = await deduplicateAndSave(products.slice(0, 15));
+      console.log(`✅ EMA SPOR fallback: saved ${result.saved}, skipped ${result.skipped}`);
+      return { source: "ema_spor", ...result };
+    } catch (fallbackError) {
+      console.error("❌ EMA SPOR error:", fallbackError);
+      return { source: "ema_spor", saved: 0, skipped: 0 };
+    }
   }
 };
 
 // WHO IRIS
 export const collectWHOIRIS = async () => {
   try {
-    const response = await axios.get("https://iris.who.int/search", {
+    const response = await axios.get("https://iris.who.int/server/api/discover/search/objects", {
       params: {
-        q: "treatment",
-        rows: 15
+        query: "treatment",
+        page: 0,
+        size: 15
       },
-      timeout: 10000
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "MedicalAggregator/1.0"
+      },
+      timeout: 15000
     });
 
-    const $ = cheerio.load(response.data);
-    const publications: any[] = [];
+    const items = response.data?._embedded?.items || response.data?.items || response.data?.objects || [];
+    const publications = (Array.isArray(items) ? items : []).slice(0, 15).map((item: any) => ({
+      source: "who_iris",
+      external_id: item.id || item.handle || item.metadata?.dc_identifier || item?.uri,
+      title: item?.metadata?.dc_title || item?.name || "WHO IRIS publication",
+      abstract: item?.metadata?.dc_description || item?.description || "",
+      url: item?.uri || `https://iris.who.int/handle/${item.handle}`,
+      published_date: item?.metadata?.dc_date || new Date().toISOString(),
+      type: "publication"
+    }));
 
-    $('.publication, .result-item').each((_, el) => {
-      const title = $(el).find('h3, .title').text().trim();
-      const link = $(el).find('a').attr('href');
-
-      if (title && link) {
-        publications.push({
-          source: "who_iris",
-          external_id: link.split('/').pop(),
-          title: title,
-          abstract: "WHO publication",
-          url: `https://iris.who.int${link}`,
-          published_date: new Date().toISOString(),
-          type: "publication"
-        });
-      }
-    });
-
-    const result = await deduplicateAndSave(publications.slice(0, 15));
+    const result = await deduplicateAndSave(publications);
     console.log(`✅ WHO IRIS: saved ${result.saved}, skipped ${result.skipped}`);
     return { source: "who_iris", ...result };
   } catch (error) {

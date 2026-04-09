@@ -3,9 +3,32 @@ import { collection, addDoc, query, where, getDocs, serverTimestamp } from "fire
 import { db } from "../firebase";
 import { rssSources, scrapeSources, apiSources } from "./sourceConfig";
 
+// Classify article based on content
+const classifyArticle = (article: any) => {
+  const text = `${article.title} ${article.abstract}`.toLowerCase();
+  
+  if (text.includes("new drug") || text.includes("phase iii") || text.includes("fda approval") || text.includes("clinical trial results")) {
+    return { ...article, category: "medication" };
+  }
+  
+  if (text.includes("treatment guideline")) {
+    return { ...article, category: "guideline" };
+  }
+  
+  if (text.includes("rare case")) {
+    return { ...article, category: "rare_case" };
+  }
+  
+  return { ...article, category: "other" };
+};
+
 // Helper function to deduplicate articles by title and source
 const deduplicateArticles = async (articles: any[]) => {
   for (const article of articles) {
+    // Classify the article
+    const classifiedArticle = classifyArticle(article);
+    const status = classifiedArticle.category === "other" ? "other" : "pending";
+
     const q = query(
       collection(db, "articles"),
       where("source", "==", article.source),
@@ -13,14 +36,14 @@ const deduplicateArticles = async (articles: any[]) => {
     );
     const snapshot = await getDocs(q);
     if (snapshot.docs.length === 0) {
-      await addDoc(collection(db, "articles"), article);
+      await addDoc(collection(db, "articles"), { ...classifiedArticle, status, created_at: serverTimestamp() });
     }
   }
 };
 
 export const fetchPubMedArticles = async () => {
-  const term = '("new drug"[Title/Abstract] OR "phase III"[Title/Abstract] OR "FDA approval"[Title/Abstract] OR "clinical trial results"[Title/Abstract] OR "treatment guideline"[Title/Abstract] OR "rare case"[Title/Abstract])';
-  const reldate = 1;
+  const term = "all[sb]";
+  const reldate = 7;
   
   try {
     const searchRes = await axios.get("/api/pubmed/search", { params: { term, reldate } });
@@ -39,9 +62,7 @@ export const fetchPubMedArticles = async () => {
         title: s.title,
         abstract: s.abstract || "",
         url: `https://pubmed.ncbi.nlm.nih.gov/${id}/`,
-        published_date: s.pubdate,
-        status: "pending",
-        created_at: serverTimestamp()
+        published_date: s.pubdate
       };
     });
 
@@ -93,9 +114,7 @@ const parseClinicalTrials = (data: any): any[] => {
     title: s.protocolSection?.identificationModule?.officialTitle || s.protocolSection?.identificationModule?.briefTitle,
     abstract: s.protocolSection?.descriptionModule?.briefSummary,
     url: `https://clinicaltrials.gov/study/${s.protocolSection?.identificationModule?.nctId}`,
-    published_date: s.protocolSection?.statusModule?.lastUpdatePostDate,
-    status: "pending",
-    created_at: serverTimestamp()
+    published_date: s.protocolSection?.statusModule?.lastUpdatePostDate
   }));
 };
 
@@ -106,9 +125,7 @@ const parseOpenFDA = (data: any): any[] => {
     title: `FDA Alert: ${r.brand_name?.[0] || "Drug"}`,
     abstract: r.adverse_reactions?.[0] || r.summary || "",
     url: "https://api.fda.gov",
-    published_date: new Date().toISOString(),
-    status: "pending",
-    created_at: serverTimestamp()
+    published_date: new Date().toISOString()
   }));
 };
 
@@ -120,9 +137,7 @@ const parseEuropePMC = (data: any): any[] => {
     title: r.title,
     abstract: r.abstractText || "",
     url: `https://europepmc.org/article/${r.source}/${r.id}`,
-    published_date: r.firstPublicationDate,
-    status: "pending",
-    created_at: serverTimestamp()
+    published_date: r.firstPublicationDate
   }));
 };
 
@@ -134,9 +149,7 @@ const parseCrossRef = (data: any): any[] => {
     title: item.title?.[0] || "Research Article",
     abstract: item.abstract || "",
     url: `https://doi.org/${item.DOI}`,
-    published_date: item.created?.["date-time"] || new Date().toISOString(),
-    status: "pending",
-    created_at: serverTimestamp()
+    published_date: item.created?.["date-time"] || new Date().toISOString()
   }));
 };
 
@@ -148,9 +161,7 @@ const parseSemanticScholar = (data: any): any[] => {
     title: paper.title,
     abstract: paper.abstract || "",
     url: `https://www.semanticscholar.org/paper/${paper.paperId}`,
-    published_date: paper.year?.toString(),
-    status: "pending",
-    created_at: serverTimestamp()
+    published_date: paper.year?.toString()
   }));
 };
 
@@ -162,9 +173,7 @@ const parseChEMBL = (data: any): any[] => {
     title: `ChEMBL: ${mol.pref_name}`,
     abstract: mol.molecule_type || "",
     url: `https://www.ebi.ac.uk/chembl/compound/${mol.molecule_chembl_id}`,
-    published_date: new Date().toISOString(),
-    status: "pending",
-    created_at: serverTimestamp()
+    published_date: new Date().toISOString()
   }));
 };
 
@@ -176,9 +185,7 @@ const parseOrphanet = (data: any): any[] => {
     title: d.Name,
     abstract: `Rare disease - Status: ${d.DisorderStatus}`,
     url: `https://www.orpha.net/consor/cgi-bin/OC_Exp.php?Lng=EN&Expert=${d["@id"]}`,
-    published_date: new Date().toISOString(),
-    status: "pending",
-    created_at: serverTimestamp()
+    published_date: new Date().toISOString()
   }));
 };
 
@@ -209,9 +216,7 @@ export const fetchRSSArticles = async (url: string, sourceName: string) => {
       title: item.title,
       abstract: item.description,
       url: item.link,
-      published_date: item.pubDate,
-      status: "pending",
-      created_at: serverTimestamp()
+      published_date: item.pubDate
     }));
   } catch (error) {
     console.error(`Error fetching RSS ${sourceName}:`, error);
@@ -246,9 +251,7 @@ export const fetchScrapeSource = async (source: any) => {
       title: item.title,
       abstract: item.description || "",
       url: item.link,
-      published_date: item.pubDate || "",
-      status: "pending",
-      created_at: serverTimestamp()
+      published_date: item.pubDate || ""
     }));
   } catch (error) {
     console.error(`Error scraping source ${source.label}:`, error);
@@ -257,8 +260,7 @@ export const fetchScrapeSource = async (source: any) => {
 };
 
 export const fetchOpenAlex = async () => {
-  const search = "phytomedicine OR ethnopharmacology OR plant medicinal";
-  const res = await axios.get("/api/openalex", { params: { search } });
+  const res = await axios.get("/api/openalex");
   const results = res.data.results || [];
   
   return results.map((r: any) => ({
@@ -267,9 +269,7 @@ export const fetchOpenAlex = async () => {
     title: r.title,
     abstract: r.abstract || "",
     url: r.doi || r.id,
-    published_date: r.publication_date,
-    status: "pending",
-    created_at: serverTimestamp()
+    published_date: r.publication_date
   }));
 };
 
@@ -283,15 +283,12 @@ export const fetchBioRxiv = async (server: "biorxiv" | "medrxiv") => {
     title: p.title,
     abstract: p.abstract || "",
     url: `https://doi.org/${p.doi}`,
-    published_date: p.date,
-    status: "pending",
-    created_at: serverTimestamp()
+    published_date: p.date
   }));
 };
 
 export const fetchOpenFDA = async () => {
-  const search = "effective_time:[20260101 TO 20261231]";
-  const res = await axios.get("/api/openfda", { params: { search } });
+  const res = await axios.get("/api/openfda");
   const results = res.data.results || [];
   
   return results.map((r: any) => ({
@@ -300,15 +297,12 @@ export const fetchOpenFDA = async () => {
     title: r.openfda?.brand_name?.[0] || "New Drug Label",
     abstract: r.indications_and_usage?.[0] || "Drug information from FDA",
     url: `https://labels.fda.gov/`,
-    published_date: r.effective_time,
-    status: "pending",
-    created_at: serverTimestamp()
+    published_date: r.effective_time
   }));
 };
 
 export const fetchChEMBL = async () => {
-  const query = "alkaloid";
-  const res = await axios.get("/api/chembl", { params: { query } });
+  const res = await axios.get("/api/chembl");
   const molecules = res.data.molecules || [];
   
   return molecules.map((m: any) => ({
@@ -317,15 +311,13 @@ export const fetchChEMBL = async () => {
     title: m.pref_name || m.molecule_chembl_id,
     abstract: `Molecular Formula: ${m.molecule_properties?.full_mwt || "N/A"}. Type: ${m.molecule_type}`,
     url: `https://www.ebi.ac.uk/chembl/compound_report_card/${m.molecule_chembl_id}/`,
-    published_date: new Date().toISOString().split('T')[0],
-    status: "pending",
-    created_at: serverTimestamp()
+    published_date: new Date().toISOString().split('T')[0]
   }));
 };
 
 export const fetchOrphanet = async () => {
   try {
-    const res = await axios.get("/api/orphanet", { params: { query: "rare disease" } });
+    const res = await axios.get("/api/orphanet");
     const results = res.data.results || [];
     
     return results.map((r: any) => ({
@@ -334,9 +326,7 @@ export const fetchOrphanet = async () => {
       title: r.name || "Rare Disease Entry",
       abstract: r.description || "Information about rare diseases and orphan drugs.",
       url: `https://www.orpha.net/consor/cgi-bin/OC_Exp.php?lng=EN&Expert=${r.id}`,
-      published_date: new Date().toISOString().split('T')[0],
-      status: "pending",
-      created_at: serverTimestamp()
+      published_date: new Date().toISOString().split('T')[0]
     }));
   } catch (e) {
     return []; // Graceful failure for Orphanet as it's a mock endpoint for now
@@ -364,6 +354,7 @@ export const seedTestData = async () => {
       abstract: "A new monoclonal antibody has shown significant reduction in amyloid plaques in patients with early-stage Alzheimer's disease. The study involved 1,800 participants over 18 months.",
       url: "https://pubmed.ncbi.nlm.nih.gov/test_1/",
       published_date: "2026-04-01",
+      category: "medication",
       status: "pending",
       created_at: serverTimestamp(),
       reliability_score: 85,
@@ -376,10 +367,24 @@ export const seedTestData = async () => {
       abstract: "The European Medicines Agency has recommended granting a marketing authorisation for a new gene therapy designed to treat adults with severe Hemophilia B.",
       url: "https://www.ema.europa.eu/en/news/test_2",
       published_date: "2026-04-05",
+      category: "medication",
       status: "pending",
       created_at: serverTimestamp(),
       reliability_score: 92,
       type: "guideline"
+    },
+    {
+      source: "test_other",
+      external_id: "test_3",
+      title: "Some Other Article",
+      abstract: "This is just some article that doesn't match the criteria.",
+      url: "https://example.com/test_3",
+      published_date: "2026-04-06",
+      category: "other",
+      status: "other",
+      created_at: serverTimestamp(),
+      reliability_score: 50,
+      type: "other"
     }
   ];
   await saveArticles(testArticles);
