@@ -25,9 +25,9 @@ const classifyArticle = (article: any) => {
 // Helper function to deduplicate articles by title and source
 const deduplicateArticles = async (articles: any[]) => {
   for (const article of articles) {
-    // Classify the article
+    // Classify the article but keep all collected articles visible.
     const classifiedArticle = classifyArticle(article);
-    const status = classifiedArticle.category === "other" ? "other" : "pending";
+    const status = "pending";
 
     const q = query(
       collection(db, "articles"),

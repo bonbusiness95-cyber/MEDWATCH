@@ -10,7 +10,8 @@
     "start": "node dist/server.js",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "deploy:hostinger": "pwsh ./deploy-hostinger.ps1"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",

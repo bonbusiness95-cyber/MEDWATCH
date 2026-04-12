@@ -2,9 +2,38 @@ import axios from "axios";
 import admin from "firebase-admin";
 import FeedParser from "feedparser";
 import * as cheerio from "cheerio";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { rssSources, scrapeSources } from "../src/services/sourceConfig.js";
 
-const getDb = () => admin.firestore();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+let firestoreDatabaseId = process.env.FIRESTORE_DATABASE_ID || "";
+if (!firestoreDatabaseId) {
+  try {
+    const configPath = path.resolve(__dirname, "../firebase-applet-config.json");
+    const configRaw = fs.readFileSync(configPath, "utf8");
+    const config = JSON.parse(configRaw);
+    firestoreDatabaseId = config.firestoreDatabaseId || "";
+  } catch (error) {
+    // Ignore if config file is unavailable or invalid
+  }
+}
+
+let dbInstance: FirebaseFirestore.Firestore | null = null;
+const getDb = () => {
+  if (dbInstance) return dbInstance;
+
+  const db = admin.firestore();
+  if (firestoreDatabaseId) {
+    db.settings({ databaseId: firestoreDatabaseId });
+  }
+
+  dbInstance = db;
+  return db;
+};
 
 // Classify article based on content
 const classifyArticle = (article: any) => {
@@ -29,7 +58,7 @@ const classifyArticle = (article: any) => {
 const deduplicateAndSave = async (articles: any[]) => {
   let db;
   try {
-    db = admin.firestore();
+    db = getDb();
   } catch (error) {
     console.warn("⚠️ Firebase not available, skipping article save");
     return { saved: 0, skipped: articles.length };
@@ -41,15 +70,18 @@ const deduplicateAndSave = async (articles: any[]) => {
   for (const article of articles) {
     if (!article.title || !article.source) continue;
 
-    // Classify the article
+    // Classify the article but keep all collected articles visible in the dashboard.
     const classifiedArticle = classifyArticle(article);
-    const status = classifiedArticle.category === "other" ? "other" : "pending";
+    const status = "pending";
 
     try {
-      const q = db.collection("articles")
-        .where("source", "==", article.source)
-        .where("title", "==", article.title);
-      
+      let q = db.collection("articles").where("source", "==", article.source);
+      if (article.external_id) {
+        q = q.where("external_id", "==", article.external_id);
+      } else {
+        q = q.where("title", "==", article.title);
+      }
+
       const snapshot = await q.get();
 
       if (snapshot.empty) {
@@ -226,7 +258,7 @@ export const collectRSSSources = async () => {
         feedparser.on("error", reject);
       });
 
-      const result = await deduplicateAndSave(items.slice(0, 10));
+      const result = await deduplicateAndSave(items);
       console.log(`✅ RSS ${source.label}: saved ${result.saved}, skipped ${result.skipped}`);
       
       allResults.saved += result.saved;
@@ -282,7 +314,7 @@ export const collectScrapeSources = async () => {
         }
       });
 
-      const result = await deduplicateAndSave(items.slice(0, 12));
+      const result = await deduplicateAndSave(items);
       console.log(`✅ Scrape ${source.label}: saved ${result.saved}, skipped ${result.skipped}`);
       
       allResults.saved += result.saved;
@@ -1035,7 +1067,7 @@ export const collectWHOIRIS = async () => {
 export const runBackgroundCollection = async () => {
   // Check if Firebase is available
   try {
-    admin.firestore();
+    getDb();
   } catch (error) {
     console.warn("⚠️ Firebase not available, skipping background collection");
     return { totalSaved: 0, totalSkipped: 0, duration: "0.00" };

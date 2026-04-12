@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
-import { signOut } from "firebase/auth";
+import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
-import { Edit2, XCircle, ExternalLink, BrainCircuit, Filter, X, Menu, LayoutDashboard, Calendar as CalendarIcon, BarChart3, Settings, LogOut, RefreshCw, Stethoscope } from "lucide-react";
+import { Edit2, XCircle, ExternalLink, BrainCircuit, Filter, X, Menu, LayoutDashboard, Calendar as CalendarIcon, BarChart3, Settings, RefreshCw, Stethoscope } from "lucide-react";
 import { fetchAllAPISources, fetchAllRSSSources, fetchAllScrapeSources, fetchPubMedArticles } from "../services/collectorService";
 import { analyzeArticle } from "../services/geminiService";
 import { allSources } from "../services/sourceConfig";
 
 export default function Dashboard() {
   const [articles, setArticles] = useState<any[]>([]);
-  const [filter, setFilter] = useState("pending");
+  const [filter, setFilter] = useState<"all" | "pending" | "approved" | "published">("pending");
   const [sourcefilters, setSourceFilters] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<"all" | "api" | "rss" | "scrape">("all");
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
@@ -20,11 +19,13 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let q = query(
-      collection(db, "articles"),
-      where("status", "==", filter),
-      orderBy("created_at", "desc")
-    );
+    let q = collection(db, "articles");
+
+    if (filter !== "all") {
+      q = query(q, where("status", "==", filter), orderBy("created_at", "desc"));
+    } else {
+      q = query(q, orderBy("created_at", "desc"));
+    }
 
     if (sourcefilters.length > 0) {
       q = query(q, where("source", "in", sourcefilters));
@@ -58,10 +59,6 @@ export default function Dashboard() {
     if (confirm("Voulez-vous vraiment rejeter cet article ?")) {
       await updateDoc(doc(db, "articles", id), { status: "rejected" });
     }
-  };
-
-  const handleLogout = () => {
-    signOut(auth);
   };
 
   const handleRefreshData = async () => {
@@ -127,13 +124,6 @@ export default function Dashboard() {
             <RefreshCw size={20} className={isRefreshing ? "animate-spin" : ""} />
             <span>Rafraîchir</span>
           </button>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors text-sm lg:text-base"
-          >
-            <LogOut size={20} />
-            <span>Déconnexion</span>
-          </button>
         </div>
       </aside>
 
@@ -166,6 +156,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200 w-full sm:w-auto">
+              <StatusButton active={filter === "all"} onClick={() => setFilter("all")} label="🌍 Tous" />
               <StatusButton active={filter === "pending"} onClick={() => setFilter("pending")} label="📋 En attente" />
               <StatusButton active={filter === "approved"} onClick={() => setFilter("approved")} label="✅ Approuvés" />
               <StatusButton active={filter === "published"} onClick={() => setFilter("published")} label="🚀 Publiés" />

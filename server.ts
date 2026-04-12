@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import axios from "axios";
 import FeedParser from "feedparser";
 import * as cheerio from "cheerio";
+import fs from "fs";
 import dotenv from "dotenv";
 import admin from "firebase-admin";
 import { createRequire } from "module";
@@ -49,6 +50,27 @@ try {
     admin.initializeApp({ credential });
     firebaseInitialized = true;
     console.log("✅ Firebase Admin initialized from file");
+  }
+
+  let firestoreDatabaseId = process.env.FIRESTORE_DATABASE_ID || "";
+  if (!firestoreDatabaseId) {
+    try {
+      const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+      const configRaw = fs.readFileSync(configPath, "utf8");
+      const config = JSON.parse(configRaw);
+      firestoreDatabaseId = config.firestoreDatabaseId || "";
+    } catch (error) {
+      // No database ID configured in the client app config.
+    }
+  }
+
+  if (firebaseInitialized && firestoreDatabaseId) {
+    try {
+      console.log("🔧 Setting Firestore databaseId:", firestoreDatabaseId);
+      admin.firestore().settings({ databaseId: firestoreDatabaseId });
+    } catch (error) {
+      console.warn("⚠️ Failed to set Firestore databaseId:", error.message);
+    }
   }
 } catch (error) {
   console.warn("⚠️ Firebase Admin not initialized - background collection will not work");
