@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: medwatch
+    env: node
+    repo: https://github.com/bonbusiness95-cyber/MEDWATCH.git
+    branch: main
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm start"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PORT
+        value: 3000
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+    disk:
+      name: medwatch-data
+      mountPath: /data
+      sizeGB: 1
