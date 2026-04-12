@@ -34,6 +34,13 @@ try {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
     console.log("✅ JSON parsed successfully");
     console.log("   Project ID:", serviceAccount.project_id);
+    
+    // Fix: Convert escaped newlines in private key to actual newlines
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      console.log("🔧 Private key format corrected");
+    }
+    
     const credential = admin.credential.cert(serviceAccount);
     admin.initializeApp({ credential });
     firebaseInitialized = true;
