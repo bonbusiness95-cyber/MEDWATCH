@@ -1,0 +1,38 @@
+﻿[
+    {
+        "Status":  "âŒ ERREUR",
+        "Category":  "RSS",
+        "Source":  "NEJM RSS",
+        "Response":  "Le serveur distant a retourné une erreur : (500) Erreur interne du serveur."
+    },
+    {
+        "Status":  "âŒ ERREUR",
+        "Category":  "RSS",
+        "Source":  "FDA RSS",
+        "Response":  "Le serveur distant a retourné une erreur : (500) Erreur interne du serveur."
+    },
+    {
+        "Status":  "âŒ ERREUR",
+        "Category":  "RSS",
+        "Source":  "WHO RSS",
+        "Response":  "Le serveur distant a retourné une erreur : (500) Erreur interne du serveur."
+    },
+    {
+        "Status":  "âŒ ERREUR",
+        "Category":  "Scrape",
+        "Source":  "FDA Scrape",
+        "Response":  "Impossible de se connecter au serveur distant"
+    },
+    {
+        "Status":  "âŒ ERREUR",
+        "Category":  "Scrape",
+        "Source":  "WHO Scrape",
+        "Response":  "Impossible de se connecter au serveur distant"
+    },
+    {
+        "Status":  "âŒ ERREUR",
+        "Category":  "Admin",
+        "Source":  "Manual Collect",
+        "Response":  "Impossible de se connecter au serveur distant"
+    }
+]

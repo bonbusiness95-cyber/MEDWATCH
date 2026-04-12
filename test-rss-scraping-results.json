@@ -1,0 +1,118 @@
+{
+  "rss": [
+    {
+      "name": "Nature Medicine",
+      "url": "https://www.nature.com/nm.rss",
+      "status": "✅ OK (8 items)",
+      "items": 8,
+      "category": "functional"
+    },
+    {
+      "name": "BMJ",
+      "url": "https://www.bmj.com/rss/recent.xml",
+      "status": "✅ OK (6 items)",
+      "items": 6,
+      "category": "functional"
+    },
+    {
+      "name": "PLOS Medicine",
+      "url": "https://journals.plos.org/plosmedicine/feed/atom",
+      "status": "✅ OK (30 items)",
+      "items": 30,
+      "category": "functional"
+    },
+    {
+      "name": "CDC MMWR",
+      "url": "https://www.cdc.gov/mmwr/rss/mmwr.xml",
+      "status": "✅ OK (2261 items)",
+      "items": 2261,
+      "category": "functional"
+    },
+    {
+      "name": "Eurosurveillance",
+      "url": "https://www.eurosurveillance.org/rss.xml",
+      "status": "❌ Erreur 500",
+      "items": 0,
+      "category": "functional"
+    },
+    {
+      "name": "NEJM (bloqué)",
+      "url": "https://www.nejm.org/rss/recent",
+      "status": "❌ Erreur 500",
+      "items": 0,
+      "category": "blocked"
+    },
+    {
+      "name": "FDA (instable)",
+      "url": "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml",
+      "status": "✅ OK (20 items)",
+      "items": 20,
+      "category": "blocked"
+    },
+    {
+      "name": "WHO (bloqué)",
+      "url": "https://www.who.int/rss-feeds/news-english.xml",
+      "status": "✅ OK (25 items)",
+      "items": 25,
+      "category": "blocked"
+    }
+  ],
+  "scraping": [
+    {
+      "name": "FDA Press Releases",
+      "source": "fda",
+      "status": "❌ Erreur 500",
+      "items": 0
+    },
+    {
+      "name": "WHO News",
+      "source": "who",
+      "status": "⚠️ OK mais 0 items (selecteurs obsolètes)",
+      "items": 0
+    },
+    {
+      "name": "EMA News",
+      "source": "ema",
+      "status": "⚠️ OK mais 0 items (selecteurs obsolètes)",
+      "items": 0
+    },
+    {
+      "name": "NEJM Articles",
+      "source": "nejm",
+      "status": "❌ Erreur 500",
+      "items": 0
+    }
+  ],
+  "alternatives": [
+    {
+      "name": "PubMed (NEJM via API)",
+      "type": "API",
+      "path": "/api/pubmed/search?term=N+Engl+J+Med[Journal]",
+      "status": "✅ OK (données disponibles)"
+    },
+    {
+      "name": "WHO IRIS API",
+      "type": "API",
+      "path": "/api/who-iris?query=malaria",
+      "status": "✅ OK (données disponibles)"
+    },
+    {
+      "name": "OpenFDA",
+      "type": "API",
+      "path": "/api/openfda?search=recall",
+      "status": "✅ OK (données disponibles)"
+    },
+    {
+      "name": "Europe PMC",
+      "type": "API",
+      "path": "/api/europe-pmc?query=heart",
+      "status": "⚠️ OK (pas de données)"
+    },
+    {
+      "name": "EMA SPOR",
+      "type": "API",
+      "path": "/api/ema-spor?type=substances",
+      "status": "❌ Erreur 500"
+    }
+  ]
+}

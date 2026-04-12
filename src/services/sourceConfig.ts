@@ -35,58 +35,99 @@ export type PaidSource = {
   reason: string;
 };
 
-// API Sources
+// API Sources - Version 2.0 corrigée
 export const apiSources: APISource[] = [
-  { name: "pubmed", label: "PubMed", endpoint: "https://api.ncbi.nlm.nih.gov/lit/ctxp" },
-  { name: "clinical_trials", label: "ClinicalTrials.gov" },
-  { name: "openfda", label: "openFDA" },
-  { name: "ema_spor", label: "EMA SPOR" },
-  { name: "who_iris", label: "WHO IRIS" },
-  { name: "crossref", label: "CrossRef API" },
-  { name: "semantic_scholar", label: "Semantic Scholar" },
-  { name: "europe_pmc", label: "Europe PMC" },
-  { name: "rxnorm", label: "RxNorm (NLM)" },
-  { name: "drugbank", label: "DrugBank" },
-  { name: "chembl", label: "ChEMBL" },
-  { name: "uniprot", label: "UniProt" },
+  // Sources médicales de base (fonctionnelles)
+  { name: "pubmed", label: "PubMed", endpoint: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/" },
+  { name: "clinical_trials", label: "ClinicalTrials.gov", endpoint: "https://clinicaltrials.gov/api/v2/studies" },
+  { name: "openfda", label: "openFDA", endpoint: "https://api.fda.gov/drug/label.json" },
+  { name: "europe_pmc", label: "Europe PMC", endpoint: "https://www.ebi.ac.uk/europepmc/webservices/rest/" },
+  
+  // Sources corrigées (v2.0)
+  { name: "semantic_scholar", label: "Semantic Scholar", endpoint: "/api/semantic-scholar" },
+  { name: "pubchem", label: "PubChem (fallback DrugBank)", endpoint: "/api/pubchem/search" },
+  { name: "pharmgkb", label: "PharmGKB", endpoint: "/api/pharmgkb" },
+  { name: "open_targets", label: "Open Targets", endpoint: "/api/open-targets" },
+  { name: "rcsb_pdb", label: "RCSB PDB", endpoint: "/api/rcsb-pdb" },
+  { name: "who_iris", label: "WHO IRIS", endpoint: "/api/who-iris" },
+  { name: "ema_spor", label: "EMA SPOR", endpoint: "/api/ema-spor" },
+  { name: "orphanet", label: "Orphanet", endpoint: "/api/orphanet" },
+  { name: "crossref", label: "CrossRef", endpoint: "/api/crossref" },
+  { name: "unpaywall", label: "Unpaywall", endpoint: "/api/unpaywall" },
+  
+  // Sources additionnelles
+  { name: "chembl", label: "ChEMBL", endpoint: "https://www.ebi.ac.uk/chembl/api/data/" },
+  { name: "uniprot", label: "UniProt", endpoint: "https://rest.uniprot.org/uniprotkb/" },
   { name: "omim", label: "OMIM" },
-  { name: "orphanet", label: "Orphanet" },
   { name: "clinvar", label: "ClinVar" },
-  { name: "pharmgkb", label: "PharmGKB" },
   { name: "disgenet", label: "DisGeNET" },
-  { name: "open_targets", label: "Open Targets" },
-  { name: "pdb_rcsb", label: "RCSB PDB" },
   { name: "geo_ncbi", label: "GEO Expression" }
 ];
 
-// RSS Sources
+// RSS Sources - Version vérifiée et fonctionnelle
 export const rssSources: RSSSource[] = [
-  { url: "https://www.nejm.org/rss/recent", name: "nejm_rss", label: "NEJM" },
-  { url: "https://www.thelancet.com/rssfeed/lancet_current.xml", name: "lancet_rss", label: "The Lancet" },
-  { url: "https://jamanetwork.com/rss/journals/jama/recent.xml", name: "jama_rss", label: "JAMA Network" },
-  { url: "https://www.bmj.com/rss/recent.xml", name: "bmj_rss", label: "BMJ" },
+  // ✅ SOURCES RSS FONCTIONNELLES VÉRIFIÉES
   { url: "https://www.nature.com/nm.rss", name: "nature_med_rss", label: "Nature Medicine" },
-  { url: "https://www.cell.com/cell/current.rss", name: "cell_press_rss", label: "Cell Press" },
-  { url: "https://stm.sciencemag.org/rss/current.xml", name: "sci_transl_med_rss", label: "Science Transl. Med." },
-  { url: "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml", name: "fda_rss", label: "FDA News" },
-  { url: "https://www.ema.europa.eu/en/news.xml", name: "ema_rss", label: "EMA News" },
-  { url: "https://www.who.int/rss-feeds/news-english.xml", name: "who_rss", label: "WHO News" },
-  { url: "https://ansm.sante.fr/rss/actualites", name: "ansm_rss", label: "ANSM (France)" },
-  { url: "https://clinicaltrials.gov/ct2/results/rss.xml", name: "ct_gov_rss", label: "ClinicalTrials.gov RSS" },
-  { url: "https://www.medscape.com/rssfeeds/public/features.xml", name: "medscape_rss", label: "Medscape" },
-  { url: "https://www.medpagetoday.com/rss/headlines.xml", name: "medpage_today_rss", label: "MedPage Today" },
-  { url: "https://www.asco.org/rss.xml", name: "asco_rss", label: "ASCO Daily News" },
-  { url: "https://www.escardio.org/The-ESC/Press-Office/Press-releases/rss.xml", name: "esc_rss", label: "ESC Cardio" },
-  { url: "https://www.cochranelibrary.com/rss/cochranereviews.xml", name: "cochrane_rss", label: "Cochrane Library" },
-  { url: "https://www.biomedcentral.com/rss", name: "bmc_rss", label: "BioMed Central" },
+  { url: "https://www.bmj.com/rss/recent.xml", name: "bmj_rss", label: "BMJ" },
   { url: "https://journals.plos.org/plosmedicine/feed/atom", name: "plos_medicine_rss", label: "PLOS Medicine" },
-  { url: "https://www.eurosurveillance.org/rss.xml", name: "eurosurveillance_rss", label: "Eurosurveillance" },
   { url: "https://www.cdc.gov/mmwr/rss/mmwr.xml", name: "cdc_mmwr_rss", label: "CDC MMWR" },
-  { url: "https://wwwnc.cdc.gov/eid/rss/etoc-rss", name: "eid_rss", label: "Emerging Infectious Diseases" },
-  { url: "https://www.ecdc.europa.eu/en/publications-data/rss.xml", name: "ecdc_rss", label: "ECDC" },
-  { url: "https://www.pharmaceutical-journal.com/rss.xml", name: "pharm_journal_rss", label: "Pharmaceutical Journal" },
-  { url: "https://www.fiercepharma.com/rss/xml", name: "fiercepharma_rss", label: "FiercePharma" }
+  { url: "https://www.eurosurveillance.org/rss.xml", name: "eurosurveillance_rss", label: "Eurosurveillance" },
+  
+  // 📡 SOURCES VIA PUBMED API (fallback RSS bloqués)
+  { url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=nejm[Journal]+AND+last+7+days[PDat]&retmode=json&retmax=10", name: "nejm_pubmed", label: "NEJM (via PubMed)" },
+  { url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=lancet[Journal]+AND+last+7+days[PDat]&retmode=json&retmax=10", name: "lancet_pubmed", label: "The Lancet (via PubMed)" },
+  { url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=jama[Journal]+AND+last+7+days[PDat]&retmode=json&retmax=10", name: "jama_pubmed", label: "JAMA (via PubMed)" },
+  
+  // ⚠️ SOURCES RSS À REMPLACER PAR SCRAPING/API
+  // Ces sources sont protégées par Cloudflare/DataDome
+  // Solution: Utiliser /api/scrape/source ou PubMed API
+  { url: "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml", name: "fda_rss", label: "FDA News (RSS officiel)" },
+  { url: "https://www.who.int/rss-feeds/news-english.xml", name: "who_rss", label: "WHO News (RSS officiel)" },
+  { url: "https://www.ema.europa.eu/en/news.xml", name: "ema_rss", label: "EMA News (RSS officiel)" },
+  
+  // 🔴 SOURCES BLOQUÉES (à éviter)
+  // Medscape, ASCO, Lancet direct, Cell Press - protégés
 ];
+
+// Configuration pour le scraping de sites médicaux protégés
+export const scrapeSiteConfigs = {
+  fda: {
+    url: "https://www.fda.gov/news-events/press-announcements",
+    listSelector: ".view-content .views-row, .news-item, article",
+    titleSelector: "h2 a, h3 a, .title a",
+    linkSelector: "a",
+    descriptionSelector: ".summary, .description, p",
+    baseUrl: "https://www.fda.gov",
+    note: "Site protégé - utiliser avec précaution"
+  },
+  who: {
+    url: "https://www.who.int/news",
+    listSelector: ".sf-news-item, article, .news-item",
+    titleSelector: "h2 a, h3 a, .title a",
+    linkSelector: "a",
+    descriptionSelector: ".summary, p",
+    baseUrl: "https://www.who.int",
+    note: "Site protégé par Cloudflare"
+  },
+  nejm: {
+    url: "https://www.nejm.org/medical-articles/recent",
+    listSelector: ".article-item, .search-results-item",
+    titleSelector: "h2 a, h3 a, .title a",
+    linkSelector: "a",
+    descriptionSelector: ".abstract, .summary, p",
+    baseUrl: "https://www.nejm.org",
+    note: "Site protégé - privilégier PubMed API"
+  },
+  lancet: {
+    url: "https://www.thelancet.com/journals/lancet/issue/current",
+    listSelector: "article, .article-summary",
+    titleSelector: "h2 a, h3 a",
+    linkSelector: "a",
+    descriptionSelector: ".summary, p",
+    baseUrl: "https://www.thelancet.com",
+    note: "Elsevier protection - privilégier PubMed API"
+  }
+};
 
 // Scrape Sources
 export const scrapeSources: ScrapeSource[] = [

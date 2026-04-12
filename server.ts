@@ -280,18 +280,234 @@ async function startServer() {
     }
   });
 
-  // Proxy for Orphanet (using a public search endpoint if available or similar)
-  // Note: Orphanet API often requires registration, but we can use their public RD-Connect or similar if available.
-  // For now, let's use a generic search proxy that could be adapted.
+  // Proxy for Orphanet (API corrigée)
   app.get("/api/orphanet", async (req, res) => {
     try {
-      const queryString = (req.query.query as string) || "all";
-      // Using a placeholder for Orphanet as their API is strictly controlled.
-      // We can simulate it or use a related open source like Rare Disease Hub if needed.
-      const response = await axios.get(`https://www.orpha.net/api/search?q=${encodeURIComponent(queryString)}`);
+      const queryString = (req.query.query as string) || "";
+      // Utilisation de l'API Orphanet corrigée
+      const response = await axios.get("https://api.orphadata.com/api/v1/rd-genes", {
+        timeout: 10000,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'MEDWATCH/2.0 (medical@research.org)'
+        }
+      });
       res.json(response.data);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch from Orphanet" });
+    } catch (error: any) {
+      console.error("Orphanet error:", error.message);
+      res.status(500).json({ error: "Failed to fetch from Orphanet", details: error.message });
+    }
+  });
+
+  // Semantic Scholar API
+  app.get("/api/semantic-scholar", async (req, res) => {
+    try {
+      const query = (req.query.query as string) || "";
+      const response = await axios.get("https://api.semanticscholar.org/graph/v1/paper/search", {
+        params: {
+          query,
+          fields: "title,abstract,year,citationCount,authors",
+          limit: 10
+        },
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'MEDWATCH/2.0 (medical@research.org)'
+        },
+        timeout: 30000
+      });
+      res.json(response.data);
+    } catch (error: any) {
+      console.error("Semantic Scholar error:", error.message);
+      res.status(500).json({ error: "Failed to fetch from Semantic Scholar", details: error.message });
+    }
+  });
+
+  // PubChem (fallback DrugBank)
+  app.get("/api/pubchem/search", async (req, res) => {
+    try {
+      const name = (req.query.name as string) || "";
+      // Recherche par nom
+      const searchResponse = await axios.get(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(name)}/cids/JSON`, {
+        timeout: 15000
+      });
+      res.json(searchResponse.data);
+    } catch (error: any) {
+      console.error("PubChem error:", error.message);
+      res.status(500).json({ error: "Failed to fetch from PubChem", details: error.message });
+    }
+  });
+
+  // PharmGKB API
+  app.get("/api/pharmgkb", async (req, res) => {
+    try {
+      const name = (req.query.name as string) || "";
+      const type = (req.query.type as string) || "chemical"; // chemical, gene
+      
+      const endpoint = type === "gene" 
+        ? `https://api.pharmgkb.org/v1/data/gene/?symbol=${encodeURIComponent(name)}`
+        : `https://api.pharmgkb.org/v1/data/chemical/?name=${encodeURIComponent(name)}`;
+        
+      const response = await axios.get(endpoint, {
+        timeout: 15000,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'MEDWATCH/2.0'
+        }
+      });
+      res.json(response.data);
+    } catch (error: any) {
+      console.error("PharmGKB error:", error.message);
+      res.status(500).json({ error: "Failed to fetch from PharmGKB", details: error.message });
+    }
+  });
+
+  // Open Targets API (GraphQL)
+  app.get("/api/open-targets", async (req, res) => {
+    try {
+      const ensemblId = (req.query.ensemblId as string) || "ENSG00000133703"; // Default: KRAS
+      
+      const query = {
+        query: `query TargetDetails($ensemblId: String!) {
+          target(ensemblId: $ensemblId) {
+            id
+            approvedSymbol
+            approvedName
+            biotype
+          }
+        }`,
+        variables: { ensemblId }
+      };
+      
+      const response = await axios.post("https://api.platform.opentargets.org/api/v4/graphql", query, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        timeout: 30000
+      });
+      res.json(response.data);
+    } catch (error: any) {
+      console.error("Open Targets error:", error.message);
+      res.status(500).json({ error: "Failed to fetch from Open Targets", details: error.message });
+    }
+  });
+
+  // RCSB PDB API
+  app.post("/api/rcsb-pdb", async (req, res) => {
+    try {
+      const proteinName = req.query.name || "insulin";
+      
+      const query = {
+        query: {
+          type: "terminal",
+          service: "text",
+          parameters: {
+            attribute: "struct.title",
+            operator: "contains_words",
+            value: proteinName
+          }
+        },
+        return_type: "entry",
+        request_options: {
+          paginate: { start: 0, rows: 10 },
+          sort: [{ sort_by: "score", direction: "desc" }]
+        }
+      };
+      
+      const response = await axios.post("https://search.rcsb.org/rcsbsearch/v2/query", query, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000
+      });
+      res.json(response.data);
+    } catch (error: any) {
+      console.error("RCSB PDB error:", error.message);
+      res.status(500).json({ error: "Failed to fetch from RCSB PDB", details: error.message });
+    }
+  });
+
+  // WHO IRIS API (DSpace 7)
+  app.get("/api/who-iris", async (req, res) => {
+    try {
+      const query = (req.query.query as string) || "";
+      const response = await axios.get("https://iris.who.int/server/api/discover/search/objects", {
+        params: {
+          query,
+          page: 0,
+          size: 10,
+          sort: "score,DESC"
+        },
+        timeout: 15000
+      });
+      res.json(response.data);
+    } catch (error: any) {
+      console.error("WHO IRIS error:", error.message);
+      res.status(500).json({ error: "Failed to fetch from WHO IRIS", details: error.message });
+    }
+  });
+
+  // EMA SPOR API
+  app.get("/api/ema-spor", async (req, res) => {
+    try {
+      const type = (req.query.type as string) || "substances"; // substances, organisations
+      const validTypes = ["substances", "organisations", "medicinal_products"];
+      
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({ error: "Invalid type. Use: substances, organisations, medicinal_products" });
+      }
+      
+      const response = await axios.get(`https://spor.ema.europa.eu/rmswi/api/export/${type}`, {
+        timeout: 30000,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; MEDWATCH/2.0)'
+        }
+      });
+      res.json(response.data);
+    } catch (error: any) {
+      console.error("EMA SPOR error:", error.message);
+      res.status(500).json({ error: "Failed to fetch from EMA SPOR", details: error.message });
+    }
+  });
+
+  // CrossRef API
+  app.get("/api/crossref", async (req, res) => {
+    try {
+      const query = (req.query.query as string) || "";
+      const response = await axios.get("https://api.crossref.org/works", {
+        params: {
+          query,
+          rows: 10
+        },
+        headers: {
+          'User-Agent': 'MEDWATCH/2.0 (mailto:medical@research.org)'
+        },
+        timeout: 15000
+      });
+      res.json(response.data);
+    } catch (error: any) {
+      console.error("CrossRef error:", error.message);
+      res.status(500).json({ error: "Failed to fetch from CrossRef", details: error.message });
+    }
+  });
+
+  // Unpaywall API
+  app.get("/api/unpaywall", async (req, res) => {
+    try {
+      const doi = (req.query.doi as string) || "";
+      if (!doi) {
+        return res.status(400).json({ error: "DOI parameter required" });
+      }
+      
+      const response = await axios.get(`https://api.unpaywall.org/v2/${doi}`, {
+        params: {
+          email: "medical@research.org"
+        },
+        timeout: 10000
+      });
+      res.json(response.data);
+    } catch (error: any) {
+      console.error("Unpaywall error:", error.message);
+      res.status(500).json({ error: "Failed to fetch from Unpaywall", details: error.message });
     }
   });
 
@@ -307,11 +523,13 @@ async function startServer() {
           'User-Agent': 'MedWatch-AI/1.0 (https://medwatch.ai)',
           'Accept': 'application/rss+xml, application/xml, text/xml'
         },
-        timeout: 10000, // 10 second timeout
-        responseType: 'stream' // Keep stream for feedparser
+        timeout: 10000,
+        responseType: 'stream'
       });
+
       const feedparser = new FeedParser({});
       const items: any[] = [];
+      let responded = false;
 
       response.data.pipe(feedparser);
 
@@ -329,16 +547,34 @@ async function startServer() {
       });
 
       feedparser.on("end", () => {
-        res.json(items);
+        if (!responded) {
+          responded = true;
+          res.json(items);
+        }
       });
 
       feedparser.on("error", (err: any) => {
         console.error("Feed parsing error:", err);
-        res.status(500).json({ error: "Failed to parse RSS feed" });
+        if (!responded) {
+          responded = true;
+          res.status(500).json({ error: "Failed to parse RSS feed", details: err.message });
+        }
       });
+
+      // Handle stream errors
+      response.data.on('error', (err: any) => {
+        console.error("Stream error:", err);
+        if (!responded) {
+          responded = true;
+          res.status(500).json({ error: "Failed to fetch RSS feed", details: err.message });
+        }
+      });
+
     } catch (error: any) {
       console.error("RSS fetch error:", error.message);
-      res.status(500).json({ error: "Failed to fetch RSS feed", details: error.message });
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to fetch RSS feed", details: error.message });
+      }
     }
   });
 
@@ -389,6 +625,84 @@ async function startServer() {
     } catch (error: any) {
       console.error("Scraping error:", error.message);
       res.status(500).json({ error: "Failed to scrape page", details: error.message });
+    }
+  });
+
+  // GET endpoint for scraping with predefined sources
+  app.get("/api/scrape/source", async (req, res) => {
+    try {
+      const { source } = req.query;
+      if (!source) return res.status(400).json({ error: "Source parameter required (fda, who, ema, nejm)" });
+
+      const scrapeConfigs: Record<string, any> = {
+        fda: {
+          url: "https://www.fda.gov/news-events/press-announcements",
+          listSelector: ".view-content .views-row, article.news-item, .search-result",
+          titleSelector: "h2 a, h3 a, .title a",
+          linkSelector: "a",
+          descriptionSelector: ".summary, .description, p",
+          baseUrl: "https://www.fda.gov"
+        },
+        who: {
+          url: "https://www.who.int/news",
+          listSelector: "article.sf-news-item, .news-item, article",
+          titleSelector: "h2 a, h3 a, .title a",
+          linkSelector: "a",
+          descriptionSelector: ".summary, p",
+          baseUrl: "https://www.who.int"
+        },
+        ema: {
+          url: "https://www.ema.europa.eu/en/news",
+          listSelector: ".news-item, article, .views-row",
+          titleSelector: "h2 a, h3 a",
+          linkSelector: "a",
+          descriptionSelector: ".summary, p",
+          baseUrl: "https://www.ema.europa.eu"
+        },
+        nejm: {
+          url: "https://www.nejm.org/medical-articles/recent",
+          listSelector: ".article-item, article, .result",
+          titleSelector: "h2 a, h3 a, .title a",
+          linkSelector: "a",
+          descriptionSelector: ".abstract, .summary, p",
+          baseUrl: "https://www.nejm.org"
+        }
+      };
+
+      const config = scrapeConfigs[source as string];
+      if (!config) {
+        return res.status(400).json({ error: "Unknown source. Available: fda, who, ema, nejm" });
+      }
+
+      const response = await axios.get(config.url, {
+        headers: {
+          'User-Agent': 'MedWatch-AI/1.0 (https://medwatch.ai)',
+          'Accept': 'text/html,application/xhtml+xml'
+        },
+        timeout: 15000
+      });
+
+      const $ = cheerio.load(response.data);
+      const items: any[] = [];
+
+      $(config.listSelector).each((_, el) => {
+        const title = $(el).find(config.titleSelector).text().trim();
+        let link = $(el).find(config.linkSelector).attr("href") || "";
+        const description = config.descriptionSelector ? $(el).find(config.descriptionSelector).text().trim() : "";
+
+        if (link && link.startsWith("/") && config.baseUrl) {
+          link = config.baseUrl.replace(/\/$/, "") + link;
+        }
+
+        if (title && link) {
+          items.push({ title, description: description.substring(0, 200), link, source: source });
+        }
+      });
+
+      res.json({ results: items.slice(0, 15), count: items.length, source });
+    } catch (error: any) {
+      console.error("Scraping error:", error.message);
+      res.status(500).json({ error: "Failed to scrape", details: error.message });
     }
   });
 

@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Semantic Scholar",
+    "category": "API v2.0",
+    "status": "⚠️ 500 ",
+    "path": "/api/semantic-scholar?query=cancer"
+  },
+  {
+    "name": "PubChem (fallback DrugBank)",
+    "category": "API v2.0",
+    "status": "✅ OK ",
+    "path": "/api/pubchem/search?name=aspirin"
+  },
+  {
+    "name": "PharmGKB - Chemical",
+    "category": "API v2.0",
+    "status": "✅ OK (1 items)",
+    "path": "/api/pharmgkb?name=warfarin&type=chemical"
+  },
+  {
+    "name": "PharmGKB - Gene",
+    "category": "API v2.0",
+    "status": "✅ OK (1 items)",
+    "path": "/api/pharmgkb?name=CYP2C9&type=gene"
+  },
+  {
+    "name": "Open Targets",
+    "category": "API v2.0",
+    "status": "✅ OK (data items)",
+    "path": "/api/open-targets?ensemblId=ENSG00000133703"
+  },
+  {
+    "name": "RCSB PDB",
+    "category": "API v2.0",
+    "status": "✅ OK ",
+    "path": "/api/rcsb-pdb?name=insulin"
+  },
+  {
+    "name": "WHO IRIS",
+    "category": "API v2.0",
+    "status": "✅ OK ",
+    "path": "/api/who-iris?query=malaria"
+  },
+  {
+    "name": "EMA SPOR - Substances",
+    "category": "API v2.0",
+    "status": "⚠️ 500 ",
+    "path": "/api/ema-spor?type=substances"
+  },
+  {
+    "name": "Orphanet",
+    "category": "API v2.0",
+    "status": "⚠️ 500 ",
+    "path": "/api/orphanet"
+  },
+  {
+    "name": "CrossRef",
+    "category": "API v2.0",
+    "status": "✅ OK ",
+    "path": "/api/crossref?query=diabetes"
+  },
+  {
+    "name": "Unpaywall",
+    "category": "API v2.0",
+    "status": "✅ OK ",
+    "path": "/api/unpaywall?doi=10.1038/nature12373"
+  },
+  {
+    "name": "PubMed",
+    "category": "API Base",
+    "status": "✅ OK ",
+    "path": "/api/pubmed/search?term=diabetes"
+  },
+  {
+    "name": "ClinicalTrials",
+    "category": "API Base",
+    "status": "⚠️ 500 ",
+    "path": "/api/clinicaltrials?condition=cancer"
+  },
+  {
+    "name": "Europe PMC",
+    "category": "API Base",
+    "status": "✅ OK ",
+    "path": "/api/europe-pmc?query=heart"
+  },
+  {
+    "name": "OpenFDA",
+    "category": "API Base",
+    "status": "✅ OK (10 results)",
+    "path": "/api/openfda?search=aspirin"
+  },
+  {
+    "name": "ChEMBL",
+    "category": "API Base",
+    "status": "❌ Timeout",
+    "path": "/api/chembl?query=ibuprofen"
+  },
+  {
+    "name": "Orphanet Legacy",
+    "category": "API Base",
+    "status": "⚠️ 500 ",
+    "path": "/api/orphanet?query=all"
+  },
+  {
+    "name": "Nature Medicine RSS",
+    "category": "RSS",
+    "status": "✅ OK ",
+    "path": "/api/rss?url=https://www.nature.com/nm.rss"
+  },
+  {
+    "name": "Eurosurveillance RSS",
+    "category": "RSS",
+    "status": "⚠️ 500 ",
+    "path": "/api/rss?url=https://www.eurosurveillance.org/rss"
+  },
+  {
+    "name": "CDC EID RSS",
+    "category": "RSS",
+    "status": "⚠️ 500 ",
+    "path": "/api/rss?url=https://wwwnc.cdc.gov/eid/rss/etoc-rss"
+  }
+]
